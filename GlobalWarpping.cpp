@@ -35,6 +35,9 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 	CoordinateDouble p4 = mesh[double(upperLeftIndices.row) + 1][double(upperLeftIndices.col) + 1]; // bottomRight
 	//
 
+
+
+
 	double slopeTop = (p2.row - p1.row) / (p2.col - p1.col);
 	double slopeBottom = (p4.row - p3.row) / (p4.col - p3.col);
 	double slopeLeft = (p1.row - p3.row) / (p1.col - p3.col);
