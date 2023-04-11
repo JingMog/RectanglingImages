@@ -77,7 +77,7 @@ Seam Carving算法使用扩充“能量”最小的seam来实现图像放大，�
 
   <img src="C:\Users\jingmo\AppData\Roaming\Typora\typora-user-images\image-20230409202121823.png" alt="image-20230409202121823" style="zoom: 67%;" />
 
-  其中 N是块的数量，q是块的系数，I是单位矩阵，$$A_q$$和$$V_q$$如下所示：
+  其中 $N$是块的数量，$q$是块的系数，$I$是单位矩阵，$A_q$和$V_q$如下所示：
 
   <img src="C:\Users\jingmo\AppData\Roaming\Typora\typora-user-images\image-20230409202217991.png" alt="image-20230409202217991" style="zoom:67%;" />
 
