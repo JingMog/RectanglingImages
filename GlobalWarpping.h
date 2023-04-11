@@ -58,17 +58,19 @@ protected:
 public:
 	//构造函数
 	GlobalWarpping(Config& conf, CVMat& src);
-
 	//获取论文中的Shape Preservations能量矩阵
 	SpareseMatrixD_Row get_shape_mat(vector<vector<CoordinateDouble>> mesh);
+	//获取mesh中位于(row, col)的四邻域网格顶点坐标坐标
+	VectorXd get_vertices(int row, int col, vector<vector<CoordinateDouble>>& mesh);
+
+
 
 	SpareseMatrixD_Row get_vertex_to_shape_mat(vector<vector<CoordinateDouble>> mesh);
 	//获取论文中的Boundary Constraints能量矩阵
 	pair<SpareseMatrixD_Row, VectorXd> get_boundary_mat(vector<vector<CoordinateDouble>> mesh);
 	//获取论文中的Line Preservations能量矩阵
 	SpareseMatrixD_Row get_line_mat(CVMat mask, vector<vector<CoordinateDouble>> mesh, vector<double>rotate_theta, vector<vector<vector<LineD>>> lineSeg, vector<pair<MatrixXd, MatrixXd>>& BilinearVec, int& linenum, vector<bool>& bad);
-	//
-	VectorXd get_vertice(int row, int col, vector<vector<CoordinateDouble>> mesh);
+	
 	//
 	vector<vector<vector<LineD>>> init_line_seg(CVMat mask, vector < LineD >& lineSeg_flatten, vector<vector<CoordinateDouble>> mesh, vector<pair<int, double>>& id_theta, vector<double>& rotate_theta);
 

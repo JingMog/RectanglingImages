@@ -221,7 +221,7 @@ void ImgRecting::runImgRecting(string imgPath)
 					continue;
 				}
 				else {
-					VectorXd S = global.get_vertice(row, col, outputmesh);
+					VectorXd S = global.get_vertices(row, col, outputmesh);
 					for (int k = 0; k < linesegInquad.size(); k++) {
 						tmplinenum++;
 						//cout << tmplinenum<<endl;
@@ -281,8 +281,8 @@ void ImgRecting::runImgRecting(string imgPath)
 		cout << row << endl;
 		for (int col = 0; col < config.meshQuadCol; col++)
 		{
-			VectorXd Vq = global.get_vertice(row, col, outputmesh);//x0,y0,x1,y1
-			VectorXd Vo = global.get_vertice(row, col, mesh);//x0,y0
+			VectorXd Vq = global.get_vertices(row, col, outputmesh);//x0,y0,x1,y1
+			VectorXd Vo = global.get_vertices(row, col, mesh);//x0,y0
 			double col_len = max(Vq(0), max(Vq(2), max(Vq(4), Vq(6)))) - min(Vq(0), min(Vq(2), min(Vq(4), Vq(6))));
 			double row_len = max(Vq(1), max(Vq(3), max(Vq(5), Vq(7)))) - min(Vq(1), min(Vq(3), min(Vq(5), Vq(7))));
 			double col_step = 1 / (4 * col_len);

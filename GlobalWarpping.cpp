@@ -33,7 +33,6 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 	CoordinateDouble p2 = mesh[double(upperLeftIndices.row)][double(upperLeftIndices.col) + 1]; // topRight
 	CoordinateDouble p3 = mesh[double(upperLeftIndices.row) + 1][double(upperLeftIndices.col)]; // bottomLeft
 	CoordinateDouble p4 = mesh[double(upperLeftIndices.row) + 1][double(upperLeftIndices.col) + 1]; // bottomRight
-	//
 
 	double slopeTop = (p2.row - p1.row) / (p2.col - p1.col);
 	double slopeBottom = (p4.row - p3.row) / (p4.col - p3.col);
@@ -169,8 +168,8 @@ pair<SpareseMatrixD_Row, VectorXd> GlobalWarpping::get_boundary_mat(vector<vecto
 	//Vq=[x0 y0,x1,y1...]
 	int rows = config.rows;
 	int cols = config.cols;
-	int numMeshRow = config.meshNumRow;
-	int numMeshCol = config.meshNumCol;
+	int numMeshRow = config.meshNumRow;//网格的行数
+	int numMeshCol = config.meshNumCol;//网格的列数
 	int vertexnum = numMeshRow * numMeshCol;//顶点的数量为行数乘以列数，(400)
 
 	VectorXd dvec = VectorXd::Zero(double(vertexnum) * 2);//创建vertexnum*2维的向量devc
@@ -209,14 +208,15 @@ pair<SpareseMatrixD_Row, VectorXd> GlobalWarpping::get_boundary_mat(vector<vecto
 };
 
 /*
-	获取mesh中位于(row, col)的四邻域网格坐标
+	获取mesh中位于(row, col)的四邻域网格顶点坐标坐标
 */
-VectorXd GlobalWarpping::get_vertice(int _row, int _col, vector<vector<CoordinateDouble>> mesh) 
+VectorXd GlobalWarpping::get_vertices(int _row, int _col, vector<vector<CoordinateDouble>>& mesh) 
 {	
 	//y0,x0,y1,x1...
 	double row = _row;
 	double col = _col;
 	VectorXd Vq = VectorXd::Zero(8);//长度为8的向量
+	//四边形网格的四个顶点坐标(左上角为row, col)
 	CoordinateDouble p0 = mesh[row][col];//左上
 	CoordinateDouble p1 = mesh[row][col + 1];//右上
 	CoordinateDouble p2 = mesh[row + 1][col];//左下
@@ -226,88 +226,104 @@ VectorXd GlobalWarpping::get_vertice(int _row, int _col, vector<vector<Coordinat
 }
 
 /*
-	获取形状能量矩阵
-	保证每个四边形进行相似的变换，
+	获取Shape能量矩阵
+	保证每个四边形进行相似的变换，引自chengmingming论文
 */
 SpareseMatrixD_Row GlobalWarpping::get_shape_mat(vector<vector<CoordinateDouble>> mesh) 
 {
 	double numMeshRow = config.meshNumRow;
 	double numMeshCol = config.meshNumCol;
-	double numQuadRow = config.meshQuadRow;
-	double numQuadCol = config.meshQuadRow;
+	double numQuadRow = config.meshQuadRow;//meshNumRow - 1
+	double numQuadCol = config.meshQuadCol;//meshNumCol - 1
+	//Shape能量矩阵,
+	//用一个大的稀疏矩阵来存储shape energy,相当于每个单元为8*8的coeff，行数列数为numQuadRow * numQuadCol
 	SpareseMatrixD_Row Shape_energy(8.0 * numQuadRow * numQuadCol, 8.0 * numQuadRow * numQuadCol);
 	for (int row = 0; row < numQuadRow; row++) 
 	{
 		for (int col = 0; col < numQuadCol; col++) 
 		{
-			CoordinateDouble p0 = mesh[row][col];//左上
-			CoordinateDouble p1 = mesh[row][col + 1];//右上
-			CoordinateDouble p2 = mesh[row + 1][col];//左下
-			CoordinateDouble p3 = mesh[row + 1][col + 1];//右下
-			MatrixXd Aq(8, 4);//见论文
+			double _row = row;
+			double _col = col;
+			//网格四边形的四个顶点
+			CoordinateDouble p0 = mesh[_row][_col];//左上
+			CoordinateDouble p1 = mesh[_row][_col + 1];//右上
+			CoordinateDouble p2 = mesh[_row + 1][_col];//左下
+			CoordinateDouble p3 = mesh[_row + 1][_col + 1];//右下
+			MatrixXd Aq(8, 4);//论文中的Aq矩阵
 			Aq << p0.col, -p0.row, 1, 0,
-				p0.row, p0.col, 0, 1,
-				p1.col, -p1.row, 1, 0,
-				p1.row, p1.col, 0, 1,
-				p2.col, -p2.row, 1, 0,
-				p2.row, p2.col, 0, 1,
-				p3.col, -p3.row, 1, 0,
-				p3.row, p3.col, 0, 1;
+				  p0.row, p0.col, 0, 1,
+				  p1.col, -p1.row, 1, 0,
+				  p1.row, p1.col, 0, 1,
+				  p2.col, -p2.row, 1, 0,
+				  p2.row, p2.col, 0, 1,
+				  p3.col, -p3.row, 1, 0,
+				  p3.row, p3.col, 0, 1;
+
 			//计算系数
+			MatrixXd Aq_trans = Aq.transpose();//Aq^T
+			MatrixXd Aq_trans_mul_Aq_reverse = (Aq_trans * Aq).inverse();//(Aq^T * Aq)^-1
+			MatrixXd I = MatrixXd::Identity(8, 8);//单位矩阵
+			MatrixXd coeff = (Aq * Aq_trans_mul_Aq_reverse * Aq_trans - I);//矩阵规模为8*8
 
-			MatrixXd Aq_trans = Aq.transpose();
-			MatrixXd Aq_trans_mul_Aq_reverse = (Aq_trans * Aq).inverse();
-			MatrixXd I = MatrixXd::Identity(8, 8);
-			MatrixXd coeff = (Aq * (Aq_trans_mul_Aq_reverse)*Aq_trans - I);
-
-			int left_top_x = (row * numQuadCol + col) * 8;
+			int left_top_x = (row * numQuadCol + col) * 8;//大稀疏矩阵的左上角坐标
+			//将coeff矩阵保存到大稀疏矩阵中
 			for (int i = 0; i < 8; i++) 
 			{
 				for (int j = 0; j < 8; j++) 
 				{
-					Shape_energy.insert(left_top_x + i, left_top_x + j) = coeff(i, j);
+					Shape_energy.insert(double(left_top_x) + i, double(left_top_x) + j) = coeff(i, j);
 				}
 			}
 		}
 	}
-	Shape_energy.makeCompressed();
+	Shape_energy.makeCompressed();//对稀疏矩阵进行压缩
 	return Shape_energy;
 }
 
+/*
+	获取Q矩阵?
+*/
 SpareseMatrixD_Row GlobalWarpping::get_vertex_to_shape_mat(vector<vector<CoordinateDouble>> mesh)
 {
 	int numMeshRow = config.meshNumRow;
 	int numMeshCol = config.meshNumCol;
 	int numQuadRow = config.meshQuadRow;
 	int numQuadCol = config.meshQuadCol;
-	SpareseMatrixD_Row Q(8 * numQuadRow * numQuadCol, 2 * numMeshRow * numMeshCol);
-	for (int row = 0; row < numQuadRow; row++) {
-		for (int col = 0; col < numQuadCol; col++) {
-			int quadid = 8 * (row * numQuadCol + col);
-			int topleftvertexId = 2 * (row * numMeshCol + col);
+	//大稀疏矩阵,行数和列数都为numQuadRow * numQuadCol,每个元素为8*2的矩阵
+	SpareseMatrixD_Row Q(8.0 * numQuadRow * numQuadCol, 2.0 * numMeshRow * numMeshCol);
+	for (int row = 0; row < numQuadRow; row++)
+	{
+		for (int col = 0; col < numQuadCol; col++)
+		{
+			int quadid = 8 * (row * numQuadCol + col);//大矩阵的左上角行坐标
+			int topleftvertexId = 2 * (row * numMeshCol + col);//大矩阵的左上角列坐标
 			Q.insert(quadid, topleftvertexId) = 1;
-			Q.insert(quadid + 1, topleftvertexId + 1) = 1;
-			Q.insert(quadid + 2, topleftvertexId + 2) = 1;
-			Q.insert(quadid + 3, topleftvertexId + 3) = 1;
-			Q.insert(quadid + 4, topleftvertexId + 2 * numMeshCol) = 1;
-			Q.insert(quadid + 5, topleftvertexId + 2 * numMeshCol + 1) = 1;
-			Q.insert(quadid + 6, topleftvertexId + 2 * numMeshCol + 2) = 1;
-			Q.insert(quadid + 7, topleftvertexId + 2 * numMeshCol + 3) = 1;
+			Q.insert(quadid + 1.0, topleftvertexId + 1.0) = 1;
+			Q.insert(quadid + 2.0, topleftvertexId + 2.0) = 1;
+			Q.insert(quadid + 3.0, topleftvertexId + 3.0) = 1;
+			Q.insert(quadid + 4.0, topleftvertexId + 2.0 * numMeshCol) = 1;
+			Q.insert(quadid + 5.0, topleftvertexId + 2.0 * numMeshCol + 1.0) = 1;
+			Q.insert(quadid + 6.0, topleftvertexId + 2.0 * numMeshCol + 2.0) = 1;
+			Q.insert(quadid + 7.0, topleftvertexId + 2.0 * numMeshCol + 3.0) = 1;
 		}
 	}
-	Q.makeCompressed();
-	/*
-	for (int k = 0; k < Q.outerSize(); ++k) {
-	for (SparseMatrix<double>::InnerIterator it(Q, k); it; ++it)
+	Q.makeCompressed();//Q矩阵进行压缩
+	
+	/*for (int k = 0; k < Q.outerSize(); ++k)
 	{
-	std::cout << it.row() << " " << it.col() << " : " << it.value() << std::endl;
-	}
-	system("pause");
-	std::cout << std::endl;
+		for (SparseMatrix<double>::InnerIterator it(Q, k); it; ++it)
+		{
+			cout << it.row() << " " << it.col() << " : " << it.value() << endl;
+		}
+		cout << std::endl;
 	}*/
+	
 	return Q;
 }
 
+/*
+	判断是否满足X0<a<X1或者X1<a<X0，同时距离小于1e-8
+*/
 bool between(double a, double X0, double X1) 
 {
 	double temp1 = a - X0;
@@ -319,50 +335,71 @@ bool between(double a, double X0, double X1)
 }
 
 /*
-
+	检测两条直线是否相交,如果是,返回两条直线的交点
+	如果相交,将isintersection设为true,否则为false
 */
 Vector2d GlobalWarpping::detectIntersect(Matrix2d line1, Matrix2d line2, bool& isintersection) 
 {
-	double line_x = 0, line_y = 0; //交点  
+	double line_x = 0, line_y = 0; //交点坐标
+	//第一条直线的两个端点坐标
 	double p1_x = line1(0, 1), p1_y = line1(0, 0), p2_x = line1(1, 1), p2_y = line1(1, 0);
+	//第二条直线的两个端点坐标
 	double p3_x = line2(0, 1), p3_y = line2(0, 0), p4_x = line2(1, 1), p4_y = line2(1, 0);
-	if ((fabs(p1_x - p2_x) < 1e-6) && (fabs(p3_x - p4_x) < 1e-6)) {
+
+	//如果两条直线均平行于x轴,则不相交
+	if ((fabs(p1_x - p2_x) < 1e-6) && (fabs(p3_x - p4_x) < 1e-6)) 
+	{
 		isintersection = false;
 	}
-	else if ((fabs(p1_x - p2_x) < 1e-6)) { //如果直线段p1p2垂直与y轴  
-		if (between(p1_x, p3_x, p4_x)) {
+	//只有第一条直线平行于x轴
+	else if ((fabs(p1_x - p2_x) < 1e-6)) 
+	{ 
+		if (between(p1_x, p3_x, p4_x)) 
+		{
 			double k = (p4_y - p3_y) / (p4_x - p3_x);
 			line_x = p1_x;
 			line_y = k * (line_x - p3_x) + p3_y;
 
-			if (between(line_y, p1_y, p2_y)) {
+			if (between(line_y, p1_y, p2_y)) 
+			{
 				isintersection = true;
 			}
-			else {
+			else 
+			{
 				isintersection = false;
 			}
 		}
-		else {
+		else 
+		{
 			isintersection = false;
 		}
 	}
-	else if ((fabs(p3_x - p4_x) < 1e-6)) { //如果直线段p3p4垂直与y轴  
-		if (between(p3_x, p1_x, p2_x)) {
+	//只有第二条直线平行于x轴
+	else if ((fabs(p3_x - p4_x) < 1e-6)) 
+	{ 
+		//如果直线段p3p4垂直与y轴  
+		if (between(p3_x, p1_x, p2_x)) 
+		{
 			double k = (p2_y - p1_y) / (p2_x - p1_x);
 			line_x = p3_x;
 			line_y = k * (line_x - p2_x) + p2_y;
-			if (between(line_y, p3_y, p4_y)) {
+			if (between(line_y, p3_y, p4_y)) 
+			{
 				isintersection = true;
 			}
-			else {
+			else 
+			{
 				isintersection = false;
 			}
 		}
-		else {
+		else 
+		{
 			isintersection = false;
 		}
 	}
-	else {
+	//两条直线都不平行与x轴
+	else 
+	{
 		double k1 = (p2_y - p1_y) / (p2_x - p1_x);
 		double k2 = (p4_y - p3_y) / (p4_x - p3_x);
 
@@ -809,7 +846,7 @@ SpareseMatrixD_Row GlobalWarpping::get_line_mat(CVMat mask, vector<vector<Coordi
 					MatrixXd end_W_mat = BilinearWeightsToMatrix(endWeight);
 					//cout << startWeight.s << " " << startWeight.t << endl;//test
 					//test
-					VectorXd S = get_vertice(row, col, mesh);
+					VectorXd S = get_vertices(row, col, mesh);
 					Vector2d ans = start_W_mat * S - Vector2d(linestart.col, linestart.row);
 					Vector2d ans2 = end_W_mat * S - Vector2d(lineend.col, lineend.row);
 
