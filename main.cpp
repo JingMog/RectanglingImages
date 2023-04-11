@@ -12,7 +12,6 @@ int main()
 	ImgRecting rect;
 	string imgPath = "C:/Users/jingmo/Pictures/CImages/Rectangling/1.jpg";
 	rect.runImgRecting(imgPath);//‘À––ImgRecting
-
 	/*
 	LocalWarpping local;
 	CVMat img = cv::imread(imgPath);

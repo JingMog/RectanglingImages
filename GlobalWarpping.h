@@ -40,20 +40,24 @@ private:
 protected:
 	//双线性权重转化为Matrix
 	MatrixXd BilinearWeightsToMatrix(BilinearWeights w);
+	//检测line1与line2是否相交,返回交点坐标值
+	Vector2d detectIntersect(Matrix2d line1, Matrix2d line2, bool& isintersection);
+	//修改mask边缘
+	void revise_mask_for_lines(CVMat& mask);
+	//判断点point是否在topLeft,topRight,bottomLeft,bottomRight组成地四边形内部
+	bool is_in_quad(CoordinateDouble point, CoordinateDouble topLeft, CoordinateDouble topRight, CoordinateDouble bottomLeft, CoordinateDouble bottomRight);
+	//判断直线Line是否在mask中
+	bool line_in_mask(CVMat mask, LineD line);
+	//调用lsd进行直线检测,返回检测到的直线
+	vector<LineD> lsd_detect(CVMat mask);
 
 	BilinearWeights get_bilinear_weights(CoordinateDouble point, Coordinate upperLeftIndices, vector<vector<CoordinateDouble>> mesh);
-
-	Vector2d detectIntersect(Matrix2d line1, Matrix2d line2, bool& isintersection);
-
-	void revise_mask_for_lines(CVMat& mask);
-
-	bool is_in_quad(CoordinateDouble point, CoordinateDouble topLeft, CoordinateDouble topRight, CoordinateDouble bottomLeft, CoordinateDouble bottomRight);
 
 	vector<vector<vector<pair<int, double>>>> cal_theta(vector<vector<vector<Line_rotate>>> lineSeg, Config config);
 
 	SpareseMatrixD_Row block_diag(SpareseMatrixD_Row origin, MatrixXd addin, int QuadID, Config config);
 
-	vector<LineD> lsd_detect(CVMat mask);
+	bool does_segment_intersect_line(LineD lineSegment, double slope, double intersect, bool vertical, CoordinateDouble& intersectPoint);
 
 public:
 	//构造函数
@@ -62,7 +66,6 @@ public:
 	SpareseMatrixD_Row get_shape_mat(vector<vector<CoordinateDouble>> mesh);
 	//获取mesh中位于(row, col)的四邻域网格顶点坐标坐标
 	VectorXd get_vertices(int row, int col, vector<vector<CoordinateDouble>>& mesh);
-
 
 
 	SpareseMatrixD_Row get_vertex_to_shape_mat(vector<vector<CoordinateDouble>> mesh);

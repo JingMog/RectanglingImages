@@ -346,76 +346,62 @@ Vector2d GlobalWarpping::detectIntersect(Matrix2d line1, Matrix2d line2, bool& i
 	//第二条直线的两个端点坐标
 	double p3_x = line2(0, 1), p3_y = line2(0, 0), p4_x = line2(1, 1), p4_y = line2(1, 0);
 
-	//如果两条直线均平行于x轴,则不相交
+	//如果两条直线均平行于y轴,则不相交
 	if ((fabs(p1_x - p2_x) < 1e-6) && (fabs(p3_x - p4_x) < 1e-6)) 
 	{
 		isintersection = false;
 	}
-	//只有第一条直线平行于x轴
+	//只有第一条直线平行于y轴
 	else if ((fabs(p1_x - p2_x) < 1e-6)) 
-	{ 
+	{
+		//如果p1_x位于p3_x与p4_x之间,则有可能相交,否则必然无交点
 		if (between(p1_x, p3_x, p4_x)) 
 		{
-			double k = (p4_y - p3_y) / (p4_x - p3_x);
-			line_x = p1_x;
-			line_y = k * (line_x - p3_x) + p3_y;
-
+			double k = (p4_y - p3_y) / (p4_x - p3_x);//第二条直线斜率
+			line_x = p1_x;//交点x坐标
+			line_y = k * (line_x - p3_x) + p3_y;//交点y坐标
+			//如果交点位于p1_y与p2_y之间,则说明相交
 			if (between(line_y, p1_y, p2_y)) 
-			{
 				isintersection = true;
-			}
 			else 
-			{
 				isintersection = false;
-			}
 		}
 		else 
-		{
 			isintersection = false;
-		}
 	}
-	//只有第二条直线平行于x轴
+	//只有第二条直线平行于y轴
 	else if ((fabs(p3_x - p4_x) < 1e-6)) 
 	{ 
-		//如果直线段p3p4垂直与y轴  
+		//如果p3_x位于p1_x与p2_x之间,则有可能相交,否则必然无交点
 		if (between(p3_x, p1_x, p2_x)) 
 		{
-			double k = (p2_y - p1_y) / (p2_x - p1_x);
-			line_x = p3_x;
-			line_y = k * (line_x - p2_x) + p2_y;
+			double k = (p2_y - p1_y) / (p2_x - p1_x);//第一条直线斜率
+			line_x = p3_x;//交点x坐标
+			line_y = k * (line_x - p2_x) + p2_y;//交点y坐标
 			if (between(line_y, p3_y, p4_y)) 
-			{
 				isintersection = true;
-			}
 			else 
-			{
 				isintersection = false;
-			}
 		}
 		else 
-		{
 			isintersection = false;
-		}
 	}
-	//两条直线都不平行与x轴
+	//两条直线都不平行与y轴
 	else 
 	{
-		double k1 = (p2_y - p1_y) / (p2_x - p1_x);
-		double k2 = (p4_y - p3_y) / (p4_x - p3_x);
-
-		if (fabs(k1 - k2) < 1e-6) {
+		double k1 = (p2_y - p1_y) / (p2_x - p1_x);//第一条直线斜率
+		double k2 = (p4_y - p3_y) / (p4_x - p3_x);//第二条直线斜率
+		//如果两条直线斜率相同,则必无交点
+		if (fabs(k1 - k2) < 1e-6)
 			isintersection = false;
-		}
-		else {
-			line_x = ((p3_y - p1_y) - (k2 * p3_x - k1 * p1_x)) / (k1 - k2);
-			line_y = k1 * (line_x - p1_x) + p1_y;
-		}
-
-		if (between(line_x, p1_x, p2_x) && between(line_x, p3_x, p4_x)) {
-			isintersection = true;
-		}
-		else {
-			isintersection = false;
+		else 
+		{
+			line_x = ((p3_y - p1_y) - (k2 * p3_x - k1 * p1_x)) / (k1 - k2);//"直线"对应交点x坐标
+			line_y = k1 * (line_x - p1_x) + p1_y;//"直线"对应交点y坐标
+			if (between(line_x, p1_x, p2_x) && between(line_x, p3_x, p4_x))
+				isintersection = true;
+			else
+				isintersection = false;
 		}
 	}
 	Vector2d p;
@@ -423,153 +409,189 @@ Vector2d GlobalWarpping::detectIntersect(Matrix2d line1, Matrix2d line2, bool& i
 	return p;
 }
 
-
+/*
+	修改mask边缘
+*/
 void GlobalWarpping::revise_mask_for_lines(CVMat& mask)
 {
 	//边缘的检测不予关注
 	//对mask腐蚀
 	int rows = mask.rows;
 	int cols = mask.cols;
-	for (int row = 0; row < rows; row++) {
+	//将左右两边缘设置为空
+	for (int row = 0; row < rows; row++)
+	{
 		mask.at<uchar>(row, 0) = 255;
 		mask.at<uchar>(row, cols - 1) = 255;
 	}
-	for (int col = 0; col < cols; col++) {
+	//将上下两边缘设置为空
+	for (int col = 0; col < cols; col++)
+	{
 		mask.at<uchar>(0, col) = 255;
 		mask.at<uchar>(rows - 1, col) = 255;
 	}
-	CVMat element = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(8, 8));
-	cv::dilate(mask, mask, element);
-	cv::dilate(mask, mask, element);
+	CVMat element = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(8, 8));//椭圆形
+	cv::dilate(mask, mask, element);//膨胀
+	cv::dilate(mask, mask, element);//膨胀
 }
 
-bool GlobalWarpping::is_in_quad(CoordinateDouble point, CoordinateDouble topLeft, CoordinateDouble topRight,
-	CoordinateDouble bottomLeft, CoordinateDouble bottomRight) 
+/*
+	判断点point是否在topLeft,topRight,bottomLeft,bottomRight组成地四边形内部
+*/
+bool GlobalWarpping::is_in_quad(CoordinateDouble point, CoordinateDouble topLeft, CoordinateDouble topRight, CoordinateDouble bottomLeft, CoordinateDouble bottomRight) 
 {
-	// the point must be to the right of the left line, below the top line, above the bottom line,
-	// and to the left of the right line
+	//点必须在topleft右下，topRight左下，bottomLeft右上，bottomRight左上
 
-	// must be right of left line
-	if (topLeft.col == bottomLeft.col) {
-		if (point.col < topLeft.col) {
+	//点必须在left右侧
+	if (topLeft.col == bottomLeft.col) 
+	{
+		if (point.col < topLeft.col)
+		{
 			return false;
 		}
 	}
-	else {
-		double leftSlope = (topLeft.row - bottomLeft.row) / (topLeft.col - bottomLeft.col);
-		double leftIntersect = topLeft.row - leftSlope * topLeft.col;
-		double yOnLineX = (point.row - leftIntersect) / leftSlope;
-		if (point.col < yOnLineX) {
+	else
+	{
+		//判断是否和四边形左边界有交点
+		double leftSlope = (topLeft.row - bottomLeft.row) / (topLeft.col - bottomLeft.col);//左边界斜率
+		double leftIntersect = topLeft.row - leftSlope * topLeft.col;//b
+		double yOnLineX = (point.row - leftIntersect) / leftSlope;//(y-b)/k
+		if (point.col < yOnLineX)
+		{
 			return false;
 		}
 	}
-	// must be left of right line
-	if (topRight.col == bottomRight.col) {
-		if (point.col > topRight.col) {
+	//点必须在right左侧
+	if (topRight.col == bottomRight.col) 
+	{
+		if (point.col > topRight.col)
+		{
 			return false;
 		}
 	}
-	else {
+	else 
+	{
+		//判断是否和四边形右边界有交点
 		double rightSlope = (topRight.row - bottomRight.row) / (topRight.col - bottomRight.col);
 		double rightIntersect = topRight.row - rightSlope * topRight.col;
 		double yOnLineX = (point.row - rightIntersect) / rightSlope;
-		if (point.col > yOnLineX) {
+		if (point.col > yOnLineX)
+		{
 			return false;
 		}
+			
 	}
 	// must be below top line
-	if (topLeft.row == topRight.row) {
-		if (point.row < topLeft.row) {
+	if (topLeft.row == topRight.row) 
+	{
+		if (point.row < topLeft.row)
+		{
 			return false;
 		}
 	}
-	else {
+	else 
+	{
+		//判断是否和四边形上边界有交点
 		double topSlope = (topRight.row - topLeft.row) / (topRight.col - topLeft.col);
 		double topIntersect = topLeft.row - topSlope * topLeft.col;
 		double xOnLineY = topSlope * point.col + topIntersect;
-		if (point.row < xOnLineY) {
+		if (point.row < xOnLineY)
+		{
 			return false;
 		}
 	}
 	// must be above bottom line
-	if (bottomLeft.row == bottomRight.row) {
-		if (point.row > bottomLeft.row) {
+	if (bottomLeft.row == bottomRight.row) 
+	{
+		if (point.row > bottomLeft.row)
+		{
 			return false;
 		}
 	}
-	else {
+	else 
+	{
+		//判断是否和四边形下边界有交点
 		double bottomSlope = (bottomRight.row - bottomLeft.row) / (bottomRight.col - bottomLeft.col);
 		double bottomIntersect = bottomLeft.row - bottomSlope * bottomLeft.col;
 		double xOnLineY = bottomSlope * point.col + bottomIntersect;
-		if (point.row > xOnLineY) {
+		if (point.row > xOnLineY)
+		{
 			return false;
 		}
 	}
-	// if all four constraints are satisfied, the point must be in the quad
+	//如果上述条件均不满足,则说明点在四边形内部
 	return true;
 }
 
-bool line_in_mask(CVMat mask, LineD line) 
+/*
+	判断线段Line是否在mask中
+*/
+bool GlobalWarpping::line_in_mask(CVMat mask, LineD line)
 {
-	if (mask.at<uchar>(line.row1, line.col1) == 0 && mask.at<uchar>(line.row2, line.col2) == 0) {
+	//如果线段起点和终点都在mask中,则说明线段在mask中
+	if (mask.at<uchar>(line.row1, line.col1) == 0 && mask.at<uchar>(line.row2, line.col2) == 0) 
+	{
 		return true;
 	}
 	return false;
 }
 
+/*
+	调用lsd方法进行直线检测
+*/
 vector<LineD> GlobalWarpping::lsd_detect(CVMat mask)
 {
-	//CVMat src2;
-	//src.copyTo(src2);
 	int rows = src.rows;
 	int cols = src.cols;
 	CVMat gray_img;
-	cv::cvtColor(src, gray_img, CV_BGR2GRAY);
-	double* image = new double[double(gray_img.rows) * double(gray_img.cols)];
-	for (int row = 0; row < gray_img.rows; row++) {
-		for (int col = 0; col < gray_img.cols; col++) {
+	cv::cvtColor(src, gray_img, CV_BGR2GRAY);//灰度图
+	double* image = new double[double(gray_img.rows) * double(gray_img.cols)];//用double数组存储gray_img(lsd要求)
+	for (int row = 0; row < gray_img.rows; row++) 
+		for (int col = 0; col < gray_img.cols; col++) 
 			image[row * gray_img.cols + col] = gray_img.at<uchar>(row, col);
-		}
-	}
+
 	vector<LineD> lines;
-	double* out;
-	int num_lines;
-	out = lsd(&num_lines, image, gray_img.cols, gray_img.rows);
-	for (int i = 0; i < num_lines; i++) {
+	double* out;//输出
+	int num_lines;//检测到线地个数个数
+	out = lsd(&num_lines, image, gray_img.cols, gray_img.rows);//调用lsd进行直线检测
+	for (int i = 0; i < num_lines; i++) 
+	{
 		LineD line(out[i * 7 + 1], out[i * 7 + 0], out[i * 7 + 3], out[i * 7 + 2]);
 		//CoordinateDouble start(out[i * 7 + 1], out[i * 7 + 0]);
 		//CoordinateDouble end(out[i * 7 + 3], out[i * 7 + 2]);
-		if (line_in_mask(mask, line)) {
+		if (line_in_mask(mask, line)) 
+		{
 			lines.push_back(line);
 		}
-
 		//DrawLine(src, start, end);
-		/*DrawLine(src, start, end);
-		cv::namedWindow("Border", CV_WINDOW_AUTOSIZE);
-		cv::imshow("Border", src);
-		cv::waitKey(0);*/
 	}
 
-	/*cv::namedWindow("Border", CV_WINDOW_AUTOSIZE);
+	/*cv::namedWindow("Border");
 	cv::imshow("Border", src);
-	cv::waitKey(0);
-	*/
+	cv::waitKey(0);*/
+
 	return lines;
 }
 
-bool does_segment_intersect_line(LineD lineSegment, double slope, double intersect,
-	bool vertical, CoordinateDouble& intersectPoint) 
+/*
+	用网格对线段进行分割
+*/
+bool GlobalWarpping::does_segment_intersect_line(LineD lineSegment, double slope, double intersect, bool vertical, CoordinateDouble& intersectPoint)
 {
-	// calculate line segment m and b
 	double lineSegmentSlope = INF;
-	if (lineSegment.col1 != lineSegment.col2) {
-		lineSegmentSlope = (lineSegment.row2 - lineSegment.row1) / (lineSegment.col2 - lineSegment.col1);
+	//如果这条线段不平行于y轴
+	if (lineSegment.col1 != lineSegment.col2) 
+	{
+		lineSegmentSlope = (lineSegment.row2 - lineSegment.row1) / (lineSegment.col2 - lineSegment.col1);//计算斜率
 	}
-	double lineSegmentIntersect = lineSegment.row1 - lineSegmentSlope * lineSegment.col1;
+	double lineSegmentIntersect = lineSegment.row1 - lineSegmentSlope * lineSegment.col1;//b = y-kx
 
-	// calculate intersection
-	if (lineSegmentSlope == slope) {
-		if (lineSegmentIntersect == intersect) {
+	//计算b
+	if (lineSegmentSlope == slope)
+	{
+		//如果线段的斜率等于网格线的斜率
+		if (lineSegmentIntersect == intersect)
+		{
 			// same line
 			intersectPoint.col = lineSegment.col1;
 			intersectPoint.row = lineSegment.row1;
@@ -606,6 +628,9 @@ bool does_segment_intersect_line(LineD lineSegment, double slope, double interse
 	}
 }
 
+/*
+	
+*/
 vector<CoordinateDouble> intersections_with_quad(LineD lineSegment, CoordinateDouble topLeft,
 	CoordinateDouble topRight, CoordinateDouble bottomLeft,
 	CoordinateDouble bottomRight) {
@@ -670,6 +695,9 @@ vector<CoordinateDouble> intersections_with_quad(LineD lineSegment, CoordinateDo
 	return intersections;
 }
 
+/*
+	
+*/
 vector<vector<vector<LineD>>> GlobalWarpping::segment_line_in_quad(vector<LineD> lines, vector<vector<CoordinateDouble>> mesh)
 {
 	int QuadnumRow = config.meshQuadRow;
