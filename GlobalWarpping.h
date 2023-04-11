@@ -50,6 +50,12 @@ protected:
 	bool line_in_mask(CVMat mask, LineD line);
 	//调用lsd进行直线检测,返回检测到的直线
 	vector<LineD> lsd_detect(CVMat mask);
+	//根据网格的k和b来判断网格边缘是否和直线相交
+	bool does_segment_intersect_line(LineD lineSegment, double slope, double intersect, bool vertical, CoordinateDouble& intersectPoint);
+	//用四边形网格对线段进行分割，返回交点集
+	vector<CoordinateDouble> intersections_with_quad(LineD lineSegment, CoordinateDouble topLeft, CoordinateDouble topRight, CoordinateDouble bottomLeft, CoordinateDouble bottomRight);
+	//将三维的线段分割结果展开成一维的vector<LineD>
+	vector<LineD> flatten(vector<vector<vector<LineD>>> lineSeg);
 
 	BilinearWeights get_bilinear_weights(CoordinateDouble point, Coordinate upperLeftIndices, vector<vector<CoordinateDouble>> mesh);
 
@@ -57,7 +63,7 @@ protected:
 
 	SpareseMatrixD_Row block_diag(SpareseMatrixD_Row origin, MatrixXd addin, int QuadID, Config config);
 
-	bool does_segment_intersect_line(LineD lineSegment, double slope, double intersect, bool vertical, CoordinateDouble& intersectPoint);
+	
 
 public:
 	//构造函数
@@ -66,18 +72,21 @@ public:
 	SpareseMatrixD_Row get_shape_mat(vector<vector<CoordinateDouble>> mesh);
 	//获取mesh中位于(row, col)的四邻域网格顶点坐标坐标
 	VectorXd get_vertices(int row, int col, vector<vector<CoordinateDouble>>& mesh);
+	//获取论文中的Boundary Constraints能量矩阵
+	pair<SpareseMatrixD_Row, VectorXd> get_boundary_mat(vector<vector<CoordinateDouble>> mesh);
+	//在整个网格中对所有直线进行分割
+	vector<vector<vector<LineD>>> segment_line_in_quad(vector<LineD> lines, vector<vector<CoordinateDouble>> mesh);
 
 
 	SpareseMatrixD_Row get_vertex_to_shape_mat(vector<vector<CoordinateDouble>> mesh);
-	//获取论文中的Boundary Constraints能量矩阵
-	pair<SpareseMatrixD_Row, VectorXd> get_boundary_mat(vector<vector<CoordinateDouble>> mesh);
+
+	
 	//获取论文中的Line Preservations能量矩阵
 	SpareseMatrixD_Row get_line_mat(CVMat mask, vector<vector<CoordinateDouble>> mesh, vector<double>rotate_theta, vector<vector<vector<LineD>>> lineSeg, vector<pair<MatrixXd, MatrixXd>>& BilinearVec, int& linenum, vector<bool>& bad);
 	
 	//
 	vector<vector<vector<LineD>>> init_line_seg(CVMat mask, vector < LineD >& lineSeg_flatten, vector<vector<CoordinateDouble>> mesh, vector<pair<int, double>>& id_theta, vector<double>& rotate_theta);
-
-	vector<vector<vector<LineD>>> segment_line_in_quad(vector<LineD> lines, vector<vector<CoordinateDouble>> mesh);
+	
 
 };
 

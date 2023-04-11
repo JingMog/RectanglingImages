@@ -90,7 +90,7 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 			else 
 			{
 				// this case should not happen
-				cerr << "   Could not interpolate s weight for coordinate (" << point.col << "," << point.row << ")." << endl;
+				cerr << "Could not interpolate s weight for coordinate (" << point.col << "," << point.row << ")." << endl;
 				s = 0;
 			}
 		}
@@ -139,7 +139,7 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 			else 
 			{
 				// this case should not happen
-				cerr << "   Could not interpolate t weight for coordinate (" << point.col << "," << point.row << ")." << endl;
+				cerr << "Could not interpolate t weight for coordinate (" << point.col << "," << point.row << ")." << endl;
 				t = 0;
 			}
 		}
@@ -151,7 +151,6 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 			// Py ~= Ay because By - Ay ~= 0. So, instead of interpolating with y, we use x.
 			s = (point.col - p1.col - (p3.col - p1.col) * t) / (p2.col + (p4.col - p2.col) * t - p1.col - (p3.col - p1.col) * t);
 		}
-
 		BilinearWeights weights;
 		weights.s = clamp(s, 0, 1);
 		weights.t = clamp(t, 0, 1);
@@ -574,173 +573,212 @@ vector<LineD> GlobalWarpping::lsd_detect(CVMat mask)
 }
 
 /*
-	用网格对线段进行分割
+	根据网格的k和b来判断网格边缘是否和直线相交
 */
 bool GlobalWarpping::does_segment_intersect_line(LineD lineSegment, double slope, double intersect, bool vertical, CoordinateDouble& intersectPoint)
 {
 	double lineSegmentSlope = INF;
-	//如果这条线段不平行于y轴
 	if (lineSegment.col1 != lineSegment.col2) 
 	{
-		lineSegmentSlope = (lineSegment.row2 - lineSegment.row1) / (lineSegment.col2 - lineSegment.col1);//计算斜率
+		//如果这条线段不平行于y轴
+		lineSegmentSlope = (lineSegment.row2 - lineSegment.row1) / (lineSegment.col2 - lineSegment.col1);//计算线段的斜率
 	}
-	double lineSegmentIntersect = lineSegment.row1 - lineSegmentSlope * lineSegment.col1;//b = y-kx
-
-	//计算b
+	double lineSegmentIntersect = lineSegment.row1 - lineSegmentSlope * lineSegment.col1;//b = y - kx
+	//如果线段与网格线平行
 	if (lineSegmentSlope == slope)
 	{
-		//如果线段的斜率等于网格线的斜率
 		if (lineSegmentIntersect == intersect)
 		{
-			// same line
-			intersectPoint.col = lineSegment.col1;
-			intersectPoint.row = lineSegment.row1;
+			//如果线段的b等于网格线的b，说明这两条线段一样
+			intersectPoint.col = lineSegment.col1;//交点横坐标即为线段横坐标
+			intersectPoint.row = lineSegment.row1;//交点纵坐标即为线段纵坐标
 			return true;
 		}
-		else {
+		else 
+		{
 			return false;
 		}
 	}
+
+	//如果线段与网格线不平行
+	//交点x坐标 x = (b2 - b1) / (k1 - k2)
 	double intersectX = (intersect - lineSegmentIntersect) / (lineSegmentSlope - slope);
+	//交点y坐标 y = k1 * x + b
 	double intersectY = lineSegmentSlope * intersectX + lineSegmentIntersect;
-	// check if intersection is in the bounds of the line segment
-	if (vertical) {
-		if ((intersectY <= lineSegment.row1 && intersectY >= lineSegment.row2) ||
-			(intersectY <= lineSegment.row2 && intersectY >= lineSegment.row1)) {
+	//检查交点是否在线段上
+	if (vertical)
+	{
+		//垂直，检查纵坐标，判断是否相交
+		if ((intersectY <= lineSegment.row1 && intersectY >= lineSegment.row2) || (intersectY <= lineSegment.row2 && intersectY >= lineSegment.row1)) 
+		{
 			intersectPoint.col = intersectX;
 			intersectPoint.row = intersectY;
 			return true;
 		}
-		else {
+		else 
+		{
 			return false;
 		}
 	}
-	else {
-		if ((intersectX <= lineSegment.col1 && intersectX >= lineSegment.col2) ||
-			(intersectX <= lineSegment.col2 && intersectX >= lineSegment.col1)) {
+	else 
+	{
+		//水平，检查横坐标，判断是否相交
+		if ((intersectX <= lineSegment.col1 && intersectX >= lineSegment.col2) || (intersectX <= lineSegment.col2 && intersectX >= lineSegment.col1)) 
+		{
 			intersectPoint.col = intersectX;
 			intersectPoint.row = intersectY;
 			return true;
 		}
-		else {
+		else 
+		{
 			return false;
 		}
 	}
 }
 
 /*
-	
+	用四边形网格对线段进行分割，返回交点集
+	通过调用does_segment_intersect_line实现
 */
-vector<CoordinateDouble> intersections_with_quad(LineD lineSegment, CoordinateDouble topLeft,
-	CoordinateDouble topRight, CoordinateDouble bottomLeft,
-	CoordinateDouble bottomRight) {
-	vector<CoordinateDouble> intersections;
+vector<CoordinateDouble> GlobalWarpping::intersections_with_quad(LineD lineSegment, CoordinateDouble topLeft, CoordinateDouble topRight, CoordinateDouble bottomLeft, CoordinateDouble bottomRight)
+{
+	vector<CoordinateDouble> intersections;//交点集
 
-	// left
+	//左
 	double leftSlope = INF;
-	if (topLeft.col != bottomLeft.col) {
-		leftSlope = (topLeft.row - bottomLeft.row) / (topLeft.col - bottomLeft.col);
+	if (topLeft.col != bottomLeft.col) 
+	{
+		leftSlope = (topLeft.row - bottomLeft.row) / (topLeft.col - bottomLeft.col);//左边界k
 	}
-	double leftIntersect = topLeft.row - leftSlope * topLeft.col;
-	// check
-	CoordinateDouble leftIntersectPoint;
-	if (does_segment_intersect_line(lineSegment, leftSlope, leftIntersect, true, leftIntersectPoint)) {
-		if (leftIntersectPoint.row >= topLeft.row && leftIntersectPoint.row <= bottomLeft.row) {
+	double leftIntersect = topLeft.row - leftSlope * topLeft.col;//左边界b
+	//判断线段是否和该边界相交
+	CoordinateDouble leftIntersectPoint;//存放相交的点
+	if (does_segment_intersect_line(lineSegment, leftSlope, leftIntersect, true, leftIntersectPoint)) 
+	{
+		if (leftIntersectPoint.row >= topLeft.row && leftIntersectPoint.row <= bottomLeft.row) 
+		{
 			intersections.push_back(leftIntersectPoint);
 		}
 	}
 
-	// right
+	//右
 	double rightSlope = INF;
-	if (topRight.col != bottomRight.col) {
-		rightSlope = (topRight.row - bottomRight.row) / (topRight.col - bottomRight.col);
+	if (topRight.col != bottomRight.col) 
+	{
+		rightSlope = (topRight.row - bottomRight.row) / (topRight.col - bottomRight.col);//右边界k
 	}
-	double rightIntersect = topRight.row - rightSlope * topRight.col;
-	// check
+	double rightIntersect = topRight.row - rightSlope * topRight.col;//右边界b
+	//判断线段是否和该边界相交
 	CoordinateDouble rightIntersectPoint;
-	if (does_segment_intersect_line(lineSegment, rightSlope, rightIntersect, true, rightIntersectPoint)) {
-		if (rightIntersectPoint.row >= topRight.row && rightIntersectPoint.row <= bottomRight.row) {
+	if (does_segment_intersect_line(lineSegment, rightSlope, rightIntersect, true, rightIntersectPoint)) 
+	{
+		if (rightIntersectPoint.row >= topRight.row && rightIntersectPoint.row <= bottomRight.row) 
+		{
 			intersections.push_back(rightIntersectPoint);
 		}
 	}
 
-	// top
+	//上
 	double topSlope = INF;
-	if (topLeft.col != topRight.col) {
-		topSlope = (topRight.row - topLeft.row) / (topRight.col - topLeft.col);
+	if (topLeft.col != topRight.col) 
+	{
+		topSlope = (topRight.row - topLeft.row) / (topRight.col - topLeft.col);//上边界k
 	}
-	double topIntersect = topLeft.row - topSlope * topLeft.col;
-	// check
+	double topIntersect = topLeft.row - topSlope * topLeft.col;//上边界b
+	//判断线段是否和该边界相交
 	CoordinateDouble topIntersectPoint;
-	if (does_segment_intersect_line(lineSegment, topSlope, topIntersect, false, topIntersectPoint)) {
-		if (topIntersectPoint.col >= topLeft.col && topIntersectPoint.col <= topRight.col) {
+	if (does_segment_intersect_line(lineSegment, topSlope, topIntersect, false, topIntersectPoint)) 
+	{
+		if (topIntersectPoint.col >= topLeft.col && topIntersectPoint.col <= topRight.col) 
+		{
 			intersections.push_back(topIntersectPoint);
 		}
 	}
 
-	// bottom
+	//下
 	double bottomSlope = INF;
-	if (bottomLeft.col != bottomRight.col) {
-		bottomSlope = (bottomRight.row - bottomLeft.row) / (bottomRight.col - bottomLeft.col);
+	if (bottomLeft.col != bottomRight.col) 
+	{
+		bottomSlope = (bottomRight.row - bottomLeft.row) / (bottomRight.col - bottomLeft.col);//下边界k
 	}
-	double bottomIntersect = bottomLeft.row - bottomSlope * bottomLeft.col;
-	// check
+	double bottomIntersect = bottomLeft.row - bottomSlope * bottomLeft.col;//下边界b
+	//判断线段是否和该边界相交
 	CoordinateDouble bottomIntersectPoint;
-	if (does_segment_intersect_line(lineSegment, bottomSlope, bottomIntersect, false, bottomIntersectPoint)) {
-		if (bottomIntersectPoint.col >= bottomLeft.col && bottomIntersectPoint.col <= bottomRight.col) {
+	if (does_segment_intersect_line(lineSegment, bottomSlope, bottomIntersect, false, bottomIntersectPoint)) 
+	{
+		if (bottomIntersectPoint.col >= bottomLeft.col && bottomIntersectPoint.col <= bottomRight.col)
+		{
 			intersections.push_back(bottomIntersectPoint);
 		}
 	}
-
-	return intersections;
+	return intersections;//返回交点集
 }
 
 /*
-	
+	在整个网格中对所有直线进行分割
 */
 vector<vector<vector<LineD>>> GlobalWarpping::segment_line_in_quad(vector<LineD> lines, vector<vector<CoordinateDouble>> mesh)
 {
 	int QuadnumRow = config.meshQuadRow;
 	int QuadnumCol = config.meshQuadCol;
-	vector<vector<vector<LineD>>> quad_line_seg;
+	vector<vector<vector<LineD>>> quad_line_seg;//用一个三维vector保存分割结果,分别为行,列,每个网格内线段集
 	CVMat src2;
 	src.copyTo(src2);
 
-	for (int row = 0; row < QuadnumRow; row++) {
+	for (int row = 0; row < QuadnumRow; row++) 
+	{
 		vector<vector<LineD>> vec_row;
-		for (int col = 0; col < QuadnumCol; col++) {
-			CoordinateDouble lefttop = mesh[row][col];
-			CoordinateDouble righttop = mesh[row][col + 1];
-			CoordinateDouble leftbottom = mesh[row + 1][col];
-			CoordinateDouble rightbottom = mesh[row + 1][col + 1];
+		for (int col = 0; col < QuadnumCol; col++) 
+		{
+			//每一个网格[row][col]
+			//获取网格的四个顶点
+			CoordinateDouble lefttop = mesh[double(row)][double(col)];
+			CoordinateDouble righttop = mesh[double(row)][double(col) + 1];
+			CoordinateDouble leftbottom = mesh[double(row) + 1][double(col)];
+			CoordinateDouble rightbottom = mesh[double(row) + 1][double(col) + 1];
 
-			vector<LineD> lineInQuad;
-			for (int i = 0; i < lines.size(); i++) {
+			vector<LineD> lineInQuad;//存储网格对所有线段分割的结果
+			//遍历每一条直线
+			for (int i = 0; i < lines.size(); i++) 
+			{
 				LineD line = lines[i];
-				CoordinateDouble point1(line.row1, line.col1);
-				CoordinateDouble point2(line.row2, line.col2);
+				CoordinateDouble point1(line.row1, line.col1);//线段端点1
+				CoordinateDouble point2(line.row2, line.col2);//线段端点2
 				bool p1InQuad = is_in_quad(point1, lefttop, righttop, leftbottom, rightbottom);
 				bool p2InQuad = is_in_quad(point2, lefttop, righttop, leftbottom, rightbottom);
-				if (p1InQuad && p2InQuad) {
+				if (p1InQuad && p2InQuad) 
+				{
+					//如果p1,p2都在四边形中,则线段必在四边形中
 					lineInQuad.push_back(line);
 				}
-				else if (p1InQuad) {
+				else if (p1InQuad) 
+				{
+					//只有p1在四边形中
 					vector<CoordinateDouble> intersections = intersections_with_quad(line, lefttop, righttop, leftbottom, rightbottom);
-					if (intersections.size() != 0) {
+					//如果有交点,则对应线段两个端点分别为point1, intersections[0]
+					if (intersections.size() != 0) 
+					{
 						LineD cutLine(point1, intersections[0]);
 						lineInQuad.push_back(cutLine);
 					}
 				}
-				else if (p2InQuad) {
+				else if (p2InQuad) 
+				{
+					//只有p2在四边形中
 					vector<CoordinateDouble> intersections = intersections_with_quad(line, lefttop, righttop, leftbottom, rightbottom);
-					if (intersections.size() != 0) {
+					if (intersections.size() != 0) 
+					{
 						LineD cutLine(point2, intersections[0]);
 						lineInQuad.push_back(cutLine);
 					}
 				}
-				else {
+				else 
+				{
+					//两个端点都不在四边形中
 					vector<CoordinateDouble> intersections = intersections_with_quad(line, lefttop, righttop, leftbottom, rightbottom);
-					if (intersections.size() == 2) {
+					//如果有两个交点,则切割线段两个端点分别为intersections[0], intersections[1]
+					if (intersections.size() == 2)
+					{
 						LineD cutLine(intersections[0], intersections[1]);
 						lineInQuad.push_back(cutLine);
 					}
@@ -770,19 +808,30 @@ vector<vector<vector<LineD>>> GlobalWarpping::segment_line_in_quad(vector<LineD>
 	return quad_line_seg;
 }
 
-
-void flatten(vector<vector<vector<LineD>>> lineSeg, vector<LineD>& line_vec, Config config) {
+/*
+	将三维的线段分割结果展开成一维的vector<LineD>
+*/
+vector<LineD> GlobalWarpping::flatten(vector<vector<vector<LineD>>> lineSeg)
+{
+	vector<LineD> line_vec;
 	int numQuadRow = config.meshQuadRow;
 	int numQuadCol = config.meshQuadCol;
-	for (int row = 0; row < numQuadRow; row++) {
-		for (int col = 0; col < numQuadCol; col++) {
-			for (int k = 0; k < lineSeg[row][col].size(); k++) {
+	for (int row = 0; row < numQuadRow; row++) 
+	{
+		for (int col = 0; col < numQuadCol; col++) 
+		{
+			for (int k = 0; k < lineSeg[row][col].size(); k++) 
+			{
 				line_vec.push_back(lineSeg[row][col][k]);
 			}
 		}
 	}
+	return line_vec;
 }
 
+/*
+	
+*/
 SpareseMatrixD_Row GlobalWarpping::block_diag(SpareseMatrixD_Row origin, MatrixXd addin, int QuadID, Config config)
 {
 	int cols_total = 8 * config.meshQuadRow * config.meshQuadCol;
@@ -791,16 +840,21 @@ SpareseMatrixD_Row GlobalWarpping::block_diag(SpareseMatrixD_Row origin, MatrixX
 
 	int lefttop_row = origin.rows();
 	int lefttop_col = 8 * QuadID;
-	for (int row = 0; row < addin.rows(); row++) {
-		for (int col = 0; col < addin.cols(); col++) {
+	for (int row = 0; row < addin.rows(); row++) 
+	{
+		for (int col = 0; col < addin.cols(); col++) 
+		{
 			res.insert(lefttop_row + row, lefttop_col + col) = addin(row, col);
 		}
 	}
-	res.makeCompressed();
+	res.makeCompressed();//对稀疏矩阵进行压缩
 	return res;
-
 }
-vector<vector<vector<LineD>>> GlobalWarpping::init_line_seg(CVMat mask, vector < LineD >& lineSeg_flatten, vector<vector<CoordinateDouble>> mesh, vector<pair<int, double>>& id_theta, vector<double>& rotate_theta) 
+
+/*
+
+*/
+vector<vector<vector<LineD>>> GlobalWarpping::init_line_seg(CVMat mask, vector<LineD>& lineSeg_flatten, vector<vector<CoordinateDouble>> mesh, vector<pair<int,double>>& id_theta, vector<double>& rotate_theta)
 {
 	double thetaPerbin = PI / 49;
 	revise_mask_for_lines(mask);
@@ -808,7 +862,7 @@ vector<vector<vector<LineD>>> GlobalWarpping::init_line_seg(CVMat mask, vector <
 												//step2: segment line in each quad
 	vector<vector<vector<LineD>>> lineSeg = segment_line_in_quad(lines, mesh);
 	//step3: construct sparsematrix
-	flatten(lineSeg, lineSeg_flatten, config);
+	lineSeg_flatten = flatten(lineSeg);
 
 	for (int i = 0; i < lineSeg_flatten.size(); i++) {
 		LineD line = lineSeg_flatten[i];
@@ -909,7 +963,9 @@ SpareseMatrixD_Row GlobalWarpping::get_line_mat(CVMat mask, vector<vector<Coordi
 	return energy_line;
 }
 
-
+/*
+	计算theta值
+*/
 vector<vector<vector<pair<int, double>>>> GlobalWarpping::cal_theta(vector<vector<vector<Line_rotate>>> lineSeg, Config config)
 {
 	vector < vector<vector<pair<int, double>>>> lineGroup;
