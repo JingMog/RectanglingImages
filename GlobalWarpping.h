@@ -57,8 +57,9 @@ protected:
 	//将三维的线段分割结果展开成一维的vector<LineD>
 	vector<LineD> flatten(vector<vector<vector<LineD>>>& lineSeg);
 	//在origin矩阵上进行扩展, 即矩阵的合并, 返回扩展之后的矩阵
-	SpareseMatrixD_Row block_diag(SpareseMatrixD_Row origin, MatrixXd addin, int QuadID, Config config);
+	SpareseMatrixD_Row block_diag_extend(SpareseMatrixD_Row origin, MatrixXd addin, int QuadID);
 
+	//
 	BilinearWeights get_bilinear_weights(CoordinateDouble point, Coordinate upperLeftIndices, vector<vector<CoordinateDouble>> mesh);
 	
 
@@ -75,17 +76,12 @@ public:
 	vector<vector<vector<LineD>>> segment_line_in_quad(vector<LineD> lines, vector<vector<CoordinateDouble>> mesh);
 	//初始化线段分割,将具有相近倾斜角度的线段分配到一个集合中
 	vector<vector<vector<LineD>>> init_line_seg(CVMat mask, vector < LineD >& lineSeg_flatten, vector<vector<CoordinateDouble>> mesh, vector<pair<int, double>>& id_theta, vector<double>& rotate_theta);
-
-
-
-	SpareseMatrixD_Row get_vertex_to_shape_mat(vector<vector<CoordinateDouble>> mesh);
-
-	
 	//获取论文中的Line Preservations能量矩阵
 	SpareseMatrixD_Row get_line_mat(CVMat mask, vector<vector<CoordinateDouble>> mesh, vector<double>rotate_theta, vector<vector<vector<LineD>>> lineSeg, vector<pair<MatrixXd, MatrixXd>>& BilinearVec, int& linenum, vector<bool>& bad);
 	
-	
-	
+	//
+	SpareseMatrixD_Row get_vertex_to_shape_mat(vector<vector<CoordinateDouble>> mesh);
+
 
 };
 

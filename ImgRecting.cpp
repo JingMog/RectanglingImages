@@ -174,8 +174,6 @@ void ImgRecting::runImgRecting(string imgPath)
 	vector<double> rotate_theta;
 	vector<vector<vector<LineD>>> LineSeg = global.init_line_seg(mask, line_flatten, mesh, id_theta, rotate_theta);
 
-
-
 	// ¿ªÊ¼µü´ú
 	for (int iter = 1; iter <= 10; iter++) 
 	{
@@ -214,19 +212,27 @@ void ImgRecting::runImgRecting(string imgPath)
 		int tmplinenum = -1;
 		VectorXd thetagroup = VectorXd::Zero(50);
 		VectorXd thetagroupcnt = VectorXd::Zero(50);
-		for (int row = 0; row < config.meshQuadRow; row++) {
-			for (int col = 0; col < config.meshQuadCol; col++) {
+		for (int row = 0; row < config.meshQuadRow; row++) 
+		{
+			for (int col = 0; col < config.meshQuadCol; col++) 
+			{
 				vector<LineD> linesegInquad = LineSeg[row][col];
 				int QuadID = row * config.meshQuadCol + col;
-				if (linesegInquad.size() == 0) {
+				if (linesegInquad.size() == 0) 
+				{
 					continue;
 				}
-				else {
+				else 
+				{
 					VectorXd S = global.get_vertices(row, col, outputmesh);
-					for (int k = 0; k < linesegInquad.size(); k++) {
+					for (int k = 0; k < linesegInquad.size(); k++) 
+					{
 						tmplinenum++;
 						//cout << tmplinenum<<endl;
-						if (bad[tmplinenum] == true) {
+
+						if (bad[tmplinenum] == true) 
+						{
+							cout << "bad is true " << endl;
 							continue;
 						}
 						//cout << tmplinenum;
@@ -238,14 +244,17 @@ void ImgRecting::runImgRecting(string imgPath)
 
 						double theta = atan((newstart(1) - newend(1)) / (newstart(0) - newend(0)));
 						double deltatheta = theta - id_theta[tmplinenum].second;
-						if (isnan(id_theta[tmplinenum].second) || isnan(deltatheta)) {
+						if (isnan(id_theta[tmplinenum].second) || isnan(deltatheta)) 
+						{
 							continue;
 						}
 
-						if (deltatheta > (PI / 2)) {
+						if (deltatheta > (PI / 2)) 
+						{
 							deltatheta -= PI;
 						}
-						if (deltatheta < (-PI / 2)) {
+						if (deltatheta < (-PI / 2)) 
+						{
 							deltatheta += PI;
 						}
 						thetagroup(id_theta[tmplinenum].first) += deltatheta;
@@ -257,7 +266,8 @@ void ImgRecting::runImgRecting(string imgPath)
 		}
 
 		//cal mean theta
-		for (int ii = 0; ii < thetagroup.size(); ii++) {
+		for (int ii = 0; ii < thetagroup.size(); ii++) 
+		{
 			thetagroup(ii) /= thetagroupcnt(ii);
 
 		}
@@ -278,7 +288,8 @@ void ImgRecting::runImgRecting(string imgPath)
 	CVMat ouputcnt = CVMat::zeros(img.size(), CV_32FC3);
 
 
-	for (int row = 0; row < config.meshQuadRow; row++) {
+	for (int row = 0; row < config.meshQuadRow; row++) 
+	{
 		cout << row << endl;
 		for (int col = 0; col < config.meshQuadCol; col++)
 		{
@@ -289,8 +300,10 @@ void ImgRecting::runImgRecting(string imgPath)
 			double col_step = 1 / (4 * col_len);
 			double row_step = 1 / (4 * row_len);
 			//system("pause");
-			for (double i = 0; i < 1; i += row_step) {
-				for (double j = 0; j < 1; j += col_step) {
+			for (double i = 0; i < 1; i += row_step) 
+			{
+				for (double j = 0; j < 1; j += col_step) 
+				{
 					double v1w = 1 - i - j + i * j;
 					double v2w = j - i * j;
 					double v3w = i - i * j;
@@ -300,13 +313,15 @@ void ImgRecting::runImgRecting(string imgPath)
 						0, v1w, 0, v2w, 0, v3w, 0, v4w;
 					VectorXd pout = matt * Vq;
 					VectorXd pref = matt * Vo;
-					if (int(pout(1)) >= 0 && int(pout(0)) >= 0 && int(pout(1)) < img.rows && int(pout(0)) < img.cols) {
+					if (int(pout(1)) >= 0 && int(pout(0)) >= 0 && int(pout(1)) < img.rows && int(pout(0)) < img.cols) 
+					{
 						colorPixel pixel = img.at<colorPixel>(int(pref(1)), int(pref(0)));
 						cv::Vec3f pixelf = cv::Vec3f(float(pixel[0]), float(pixel[1]), float(pixel[2]));
 						outputimg.at<cv::Vec3f>(int(pout(1)), int(pout(0))) = outputimg.at<cv::Vec3f>(int(pout(1)), int(pout(0))) + pixelf;
 						ouputcnt.at<cv::Vec3f>(int(pout(1)), int(pout(0))) += cv::Vec3f(1, 1, 1);
 					}
-					else {
+					else 
+					{
 						//cout << "unfill";
 					}
 				}

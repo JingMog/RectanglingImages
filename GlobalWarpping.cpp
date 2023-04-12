@@ -41,47 +41,54 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 	double slopeLeft   = (p1.row - p3.row) / (p1.col - p3.col);//左边界斜率
 	double slopeRight  = (p2.row - p4.row) / (p2.col - p4.col);//右边界斜率
 
-	double quadraticEpsilon = 0.01;
+	double quadraticEpsilon = 0.1;//
 
-	//
+	//上下边界平行并且左右边界平行
 	if (slopeTop == slopeBottom && slopeLeft == slopeRight)
 	{
 		// method 3
 		Matrix2d mat1;
+		//上边界的长,左边界的长,上边界的宽,左边界的宽
 		mat1 << p2.col - p1.col, p3.col - p1.col,
 			p2.row - p1.row, p3.row - p1.row;
 
 		MatrixXd mat2(2, 1);
-		mat2 << point.col - p1.col, point.row - p1.row;
+		mat2 << point.col - p1.col, point.row - p1.row;//point到p1的长,point到p1的宽
 
-		MatrixXd matsolution = mat1.inverse() * mat2;
+		MatrixXd matsolution = mat1.inverse() * mat2;//mat1^-1 * mat2
 
 		BilinearWeights weights;
 		weights.s = matsolution(0, 0);
 		weights.t = matsolution(1, 0);
 		return weights;
 	}
-	else if (slopeLeft == slopeRight) 
+	//只有左右边界平行
+	else if (slopeLeft == slopeRight)
 	{
-		// method 2
+		//method 2
+		//a = (x2-x1)*(y4-y3) - (y2-y1)*(x4-x3)
 		double a = (p2.col - p1.col) * (p4.row - p3.row) - (p2.row - p1.row) * (p4.col - p3.col);
+		//b = y*((x4-x3)-(x2-x1)) - x*((y4-y3)-(y2-y1)) + x1*(y4-y3) - y1*(x4-x3) + y3*(x2-x1)-x3*(y2-y1)
 		double b = point.row * ((p4.col - p3.col) - (p2.col - p1.col)) - point.col * ((p4.row - p3.row) - (p2.row - p1.row)) + p1.col * (p4.row - p3.row) - p1.row * (p4.col - p3.col) + (p2.col - p1.col) * (p3.row) - (p2.row - p1.row) * (p3.col);
+		//c = y*(x3-x1) - x*(y3-y1) + x1*y3 - x3*y1;
 		double c = point.row * (p3.col - p1.col) - point.col * (p3.row - p1.row) + p1.col * p3.row - p3.col * p1.row;
 
-		double s1 = (-1 * b + sqrt(b * b - 4 * a * c)) / (2 * a);
-		double s2 = (-1 * b - sqrt(b * b - 4 * a * c)) / (2 * a);
+		//求方程ax^2 + bx + c = 0的根
+		double s1 = (-1 * b + sqrt(b * b - 4 * a * c)) / (2 * a);//第一个根
+		double s2 = (-1 * b - sqrt(b * b - 4 * a * c)) / (2 * a);//第二个根
+		//cout << "s1: " << s1 << " s2: " << s2 << endl;
 		double s;
-		if (s1 >= 0 && s1 <= 1) 
+		if (0 <= s1 && s1 <= 1) 
 		{
 			s = s1;
 		}
-		else if (s2 >= 0 && s2 <= 1) 
+		else if (0 <= s2 && s2 <= 1) 
 		{
 			s = s2;
 		}
 		else 
 		{
-
+			//
 			if ((s1 > 1 && s1 - quadraticEpsilon < 1) || (s2 > 1 && s2 - quadraticEpsilon < 1)) 
 			{
 				s = 1;
@@ -93,15 +100,15 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 			else 
 			{
 				// this case should not happen
-				cout << "Could not interpolate s weight for coordinate (" << point.col << "," << point.row << ")." << endl;
+				//cout << "Could not interpolate s weight for coordinate (" << point.col << "," << point.row << ")." << endl;
 				s = 0;
 			}
 		}
 
-		double val = (p3.row + (p4.row - p3.row) * s - p1.row - (p2.row - p1.row) * s);
+		double val = (p3.row + (p4.row - p3.row) * s - p1.row - (p2.row - p1.row) * s);//s weight
 		double t = (point.row - p1.row - (p2.row - p1.row) * s) / val;
-		double valEpsilon = 0.1; // 0.1 and 0.01 appear identical
-		if (fabs(val) < valEpsilon) 
+		double valEpsilon = 0.01; // 0.1 and 0.01 appear identical
+		if (fabs(val) < valEpsilon)
 		{
 			// Py ~= Cy because Dy - Cy ~= 0. So, instead of interpolating with y, we use x.
 			t = (point.col - p1.col - (p2.col - p1.col) * s) / (p3.col + (p4.col - p3.col) * s - p1.col - (p2.col - p1.col) * s);
@@ -112,6 +119,7 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 		weights.t = t;
 		return weights;
 	}
+	//只有上下边界平行或者都不平行
 	else 
 	{
 		// method 1
@@ -122,6 +130,7 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 		double t1 = (-1 * b + sqrt(b * b - 4 * a * c)) / (2 * a);
 		double t2 = (-1 * b - sqrt(b * b - 4 * a * c)) / (2 * a);
 		double t;
+		//cout << "s1: " << t1 << " s2: " << t2 << endl;
 		if (t1 >= 0 && t1 <= 1) 
 		{
 			t = t1;
@@ -143,7 +152,7 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 			else 
 			{
 				// this case should not happen
-				cout << "Could not interpolate t weight for coordinate (" << point.col << "," << point.row << ")." << endl;
+				//cout << "Could not interpolate t weight for coordinate (" << point.col << "," << point.row << ")." << endl;
 				t = 0;
 			}
 		}
@@ -837,7 +846,7 @@ vector<LineD> GlobalWarpping::flatten(vector<vector<vector<LineD>>>& lineSeg)
 /*
 	在origin矩阵上进行扩展,即矩阵的合并,返回扩展之后的矩阵
 */
-SpareseMatrixD_Row GlobalWarpping::block_diag(SpareseMatrixD_Row origin, MatrixXd addin, int QuadID, Config config)
+SpareseMatrixD_Row GlobalWarpping::block_diag_extend(SpareseMatrixD_Row origin, MatrixXd addin, int QuadID)
 {
 	int cols_total = 8 * config.meshQuadRow * config.meshQuadCol;//总的列数,每一个网格单元为8*8(Shape Preservation Mat)
 	SpareseMatrixD_Row res(origin.rows() + addin.rows(), cols_total);//按行扩展,矩阵上半部分为origin,下半部分为addin
@@ -907,65 +916,71 @@ SpareseMatrixD_Row GlobalWarpping::get_line_mat(CVMat mask, vector<vector<Coordi
 			cv::waitKey(0);
 		}
 	}*/
-
-
 	SpareseMatrixD_Row energy_line;//line能量矩阵
-	for (int row = 0; row < QuadnumRow; row++) {
-		for (int col = 0; col < QuadnumCol; col++) {
-			vector<LineD> linesegInquad = lineSeg[row][col];
+	for (int row = 0; row < QuadnumRow; row++) 
+	{
+		for (int col = 0; col < QuadnumCol; col++) 
+		{
+			//遍历每一个网格
+			vector<LineD> linesegInquad = lineSeg[row][col];//网格mesh[row][col]中分割得到的线段集合
 			int QuadID = row * QuadnumCol + col;
-			if (linesegInquad.size() == 0) {
+			if (linesegInquad.size() == 0) 
+			{
+				//如果当前网格没有线段,则直接下一个网格
 				continue;
 			}
-			else {
-				Coordinate topleft(row, col);
-				MatrixXd C_row_stack(0, 8);
-				/*if (linesegInquad.size() > 2) {
-					cout << endl<<QuadID<<" "<< linesegInquad.size();
-					system("pause");
-				}*/
-				for (int k = 0; k < linesegInquad.size(); k++) {
-					linetmpnum++;
-					LineD line = linesegInquad[k];
-					CoordinateDouble linestart(line.row1, line.col1);
-					CoordinateDouble lineend(line.row2, line.col2);
+			
+			Coordinate topleft(row, col);//左上角顶点
+			MatrixXd C_row_stack(0, 8);//用来保存每一个网格中所有线段对应的C矩阵
 
-					//test
-					BilinearWeights startWeight = get_bilinear_weights(linestart, topleft, mesh);//s t2n t t1n
-					MatrixXd start_W_mat = BilinearWeightsToMatrix(startWeight);
-					BilinearWeights endWeight = get_bilinear_weights(lineend, topleft, mesh);
-					MatrixXd end_W_mat = BilinearWeightsToMatrix(endWeight);
-					//cout << startWeight.s << " " << startWeight.t << endl;//test
-					//test
-					VectorXd S = get_vertices(row, col, mesh);
-					Vector2d ans = start_W_mat * S - Vector2d(linestart.col, linestart.row);
-					Vector2d ans2 = end_W_mat * S - Vector2d(lineend.col, lineend.row);
+			for (int k = 0; k < linesegInquad.size(); k++) 
+			{
+				//遍历每一条线段
+				linetmpnum++;//记录当前线的数量,用来进行索引
+				LineD line = linesegInquad[k];//第k条线
+				CoordinateDouble linestart(line.row1, line.col1);//线段起点
+				CoordinateDouble lineend(line.row2, line.col2);//线段终点
 
-					if (ans2.norm() >= 0.0001 || ans.norm() >= 0.0001) {//error case
-						bad.push_back(true);
-						BilinearVec.push_back(make_pair(MatrixXd::Zero(2, 8), MatrixXd::Zero(2, 8)));
-						continue;
-					}
-					assert(ans.norm() < 0.0001);
-					assert(ans2.norm() < 0.0001);
-					bad.push_back(false);
-					//end test
-					//system("pause");
-					double theta = rotate_theta[linetmpnum];
-					BilinearVec.push_back(make_pair(start_W_mat, end_W_mat));
-					Matrix2d R;
-					R << cos(theta), -sin(theta),
-						sin(theta), cos(theta);
-					MatrixXd ehat(2, 1);
-					ehat << line.col1 - line.col2, line.row1 - line.row2;
-					MatrixXd tmp = (ehat.transpose() * ehat).inverse();
-					Matrix2d I = Matrix2d::Identity();
-					MatrixXd C = R * ehat * tmp * (ehat.transpose()) * (R.transpose()) - I;
-					MatrixXd CT = C * (start_W_mat - end_W_mat);
-					C_row_stack = row_stack(C_row_stack, CT);
+				BilinearWeights startWeight = get_bilinear_weights(linestart, topleft, mesh);//s t2n t t1n
+				MatrixXd start_W_mat = BilinearWeightsToMatrix(startWeight);
+				BilinearWeights endWeight = get_bilinear_weights(lineend, topleft, mesh);
+				MatrixXd end_W_mat = BilinearWeightsToMatrix(endWeight);
+				//cout << startWeight.s << " " << startWeight.t << endl;//test
+				//test
+				VectorXd S = get_vertices(row, col, mesh);
+				Vector2d ans = start_W_mat * S - Vector2d(linestart.col, linestart.row);
+				Vector2d ans2 = end_W_mat * S - Vector2d(lineend.col, lineend.row);
+
+				//如果ans2的2范数>=0.0001或者ans的2范数>=0.0001
+				if (ans2.norm() >= 0.0001 || ans.norm() >= 0.0001) 
+				{
+					//错误情况
+					bad.push_back(true);
+					BilinearVec.push_back(make_pair(MatrixXd::Zero(2, 8), MatrixXd::Zero(2, 8)));
+					continue;
 				}
-				energy_line = block_diag(energy_line, C_row_stack, QuadID, config);
+				bad.push_back(false);
+				//assert(ans.norm() < 0.0001);
+				//assert(ans2.norm() < 0.0001);
+				
+				//end test
+				//system("pause");
+
+				double theta = rotate_theta[linetmpnum];//论文中的theta_m
+				BilinearVec.push_back(make_pair(start_W_mat, end_W_mat));
+				Matrix2d R;//论文中的旋转矩阵R
+				R << cos(theta), -sin(theta),
+					sin(theta), cos(theta);
+				MatrixXd ehat(2, 1);//ehat
+				ehat << line.col1 - line.col2, line.row1 - line.row2;//计算ehat
+				MatrixXd tmp = (ehat.transpose() * ehat).inverse();//(ehat^T * ehat)^-1
+				Matrix2d I = Matrix2d::Identity();//单位矩阵
+				MatrixXd C = R * ehat * tmp * (ehat.transpose()) * (R.transpose()) - I;//论文(6)中的C
+				//线段方向向量e = start_W_mat - end_W_mat,
+				MatrixXd CT = C * (start_W_mat - end_W_mat); //C*e
+				C_row_stack = row_stack(C_row_stack, CT);//将CT加到C_row_stack下方,按行合并
 			}
+			energy_line = block_diag_extend(energy_line, C_row_stack, QuadID);//将C_row_stack加到energy_line矩阵下方,按行扩展
 		}
 	}
 	linenum = linetmpnum;
