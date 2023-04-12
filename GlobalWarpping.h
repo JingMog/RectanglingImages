@@ -55,14 +55,11 @@ protected:
 	//用四边形网格对线段进行分割，返回交点集
 	vector<CoordinateDouble> intersections_with_quad(LineD lineSegment, CoordinateDouble topLeft, CoordinateDouble topRight, CoordinateDouble bottomLeft, CoordinateDouble bottomRight);
 	//将三维的线段分割结果展开成一维的vector<LineD>
-	vector<LineD> flatten(vector<vector<vector<LineD>>> lineSeg);
-
-	BilinearWeights get_bilinear_weights(CoordinateDouble point, Coordinate upperLeftIndices, vector<vector<CoordinateDouble>> mesh);
-
-	vector<vector<vector<pair<int, double>>>> cal_theta(vector<vector<vector<Line_rotate>>> lineSeg, Config config);
-
+	vector<LineD> flatten(vector<vector<vector<LineD>>>& lineSeg);
+	//在origin矩阵上进行扩展, 即矩阵的合并, 返回扩展之后的矩阵
 	SpareseMatrixD_Row block_diag(SpareseMatrixD_Row origin, MatrixXd addin, int QuadID, Config config);
 
+	BilinearWeights get_bilinear_weights(CoordinateDouble point, Coordinate upperLeftIndices, vector<vector<CoordinateDouble>> mesh);
 	
 
 public:
@@ -76,6 +73,9 @@ public:
 	pair<SpareseMatrixD_Row, VectorXd> get_boundary_mat(vector<vector<CoordinateDouble>> mesh);
 	//在整个网格中对所有直线进行分割
 	vector<vector<vector<LineD>>> segment_line_in_quad(vector<LineD> lines, vector<vector<CoordinateDouble>> mesh);
+	//初始化线段分割,将具有相近倾斜角度的线段分配到一个集合中
+	vector<vector<vector<LineD>>> init_line_seg(CVMat mask, vector < LineD >& lineSeg_flatten, vector<vector<CoordinateDouble>> mesh, vector<pair<int, double>>& id_theta, vector<double>& rotate_theta);
+
 
 
 	SpareseMatrixD_Row get_vertex_to_shape_mat(vector<vector<CoordinateDouble>> mesh);
@@ -84,8 +84,7 @@ public:
 	//获取论文中的Line Preservations能量矩阵
 	SpareseMatrixD_Row get_line_mat(CVMat mask, vector<vector<CoordinateDouble>> mesh, vector<double>rotate_theta, vector<vector<vector<LineD>>> lineSeg, vector<pair<MatrixXd, MatrixXd>>& BilinearVec, int& linenum, vector<bool>& bad);
 	
-	//
-	vector<vector<vector<LineD>>> init_line_seg(CVMat mask, vector < LineD >& lineSeg_flatten, vector<vector<CoordinateDouble>> mesh, vector<pair<int, double>>& id_theta, vector<double>& rotate_theta);
+	
 	
 
 };

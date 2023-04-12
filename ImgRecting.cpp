@@ -177,7 +177,8 @@ void ImgRecting::runImgRecting(string imgPath)
 
 
 	// ¿ªÊ¼µü´ú
-	for (int iter = 1; iter <= 10; iter++) {
+	for (int iter = 1; iter <= 10; iter++) 
+	{
 		cout << iter << endl;
 		int Nl = 0;
 		vector<pair<MatrixXd, MatrixXd>> BilinearVec;//need to update

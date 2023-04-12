@@ -1,4 +1,5 @@
 #include"GlobalWarpping.h"
+#pragma warning(disable: 4244)
 
 /*
 	默认构造函数,初始化config
@@ -25,23 +26,25 @@ MatrixXd GlobalWarpping::BilinearWeightsToMatrix(BilinearWeights w)
 }
 
 /*
-	
+	获取双线性权值
 */
 BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coordinate upperLeftIndices, vector<vector<CoordinateDouble>> mesh)
 {
-	CoordinateDouble p1 = mesh[double(upperLeftIndices.row)][double(upperLeftIndices.col)]; // topLeft
-	CoordinateDouble p2 = mesh[double(upperLeftIndices.row)][double(upperLeftIndices.col) + 1]; // topRight
-	CoordinateDouble p3 = mesh[double(upperLeftIndices.row) + 1][double(upperLeftIndices.col)]; // bottomLeft
-	CoordinateDouble p4 = mesh[double(upperLeftIndices.row) + 1][double(upperLeftIndices.col) + 1]; // bottomRight
+	//获取四边形网格的四个坐标
+	CoordinateDouble p1 = mesh[upperLeftIndices.row][upperLeftIndices.col];//左上角
+	CoordinateDouble p2 = mesh[upperLeftIndices.row][upperLeftIndices.col + 1];//右上角
+	CoordinateDouble p3 = mesh[upperLeftIndices.row + 1][upperLeftIndices.col];//左下角
+	CoordinateDouble p4 = mesh[upperLeftIndices.row + 1][upperLeftIndices.col + 1];//右下角
 
-	double slopeTop = (p2.row - p1.row) / (p2.col - p1.col);
-	double slopeBottom = (p4.row - p3.row) / (p4.col - p3.col);
-	double slopeLeft = (p1.row - p3.row) / (p1.col - p3.col);
-	double slopeRight = (p2.row - p4.row) / (p2.col - p4.col);
+	double slopeTop    = (p2.row - p1.row) / (p2.col - p1.col);//上边界斜率
+	double slopeBottom = (p4.row - p3.row) / (p4.col - p3.col);//下边界斜率
+	double slopeLeft   = (p1.row - p3.row) / (p1.col - p3.col);//左边界斜率
+	double slopeRight  = (p2.row - p4.row) / (p2.col - p4.col);//右边界斜率
 
 	double quadraticEpsilon = 0.01;
 
-	if (slopeTop == slopeBottom && slopeLeft == slopeRight) 
+	//
+	if (slopeTop == slopeBottom && slopeLeft == slopeRight)
 	{
 		// method 3
 		Matrix2d mat1;
@@ -90,7 +93,7 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 			else 
 			{
 				// this case should not happen
-				cerr << "Could not interpolate s weight for coordinate (" << point.col << "," << point.row << ")." << endl;
+				cout << "Could not interpolate s weight for coordinate (" << point.col << "," << point.row << ")." << endl;
 				s = 0;
 			}
 		}
@@ -111,7 +114,6 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 	}
 	else 
 	{
-
 		// method 1
 		double a = (p3.col - p1.col) * (p4.row - p2.row) - (p3.row - p1.row) * (p4.col - p2.col);
 		double b = point.row * ((p4.col - p2.col) - (p3.col - p1.col)) - point.col * ((p4.row - p2.row) - (p3.row - p1.row)) + (p3.col - p1.col) * (p2.row) - (p3.row - p1.row) * (p2.col) + (p1.col) * (p4.row - p2.row) - (p1.row) * (p4.col - p2.col);
@@ -120,10 +122,12 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 		double t1 = (-1 * b + sqrt(b * b - 4 * a * c)) / (2 * a);
 		double t2 = (-1 * b - sqrt(b * b - 4 * a * c)) / (2 * a);
 		double t;
-		if (t1 >= 0 && t1 <= 1) {
+		if (t1 >= 0 && t1 <= 1) 
+		{
 			t = t1;
 		}
-		else if (t2 >= 0 && t2 <= 1) {
+		else if (t2 >= 0 && t2 <= 1) 
+		{
 			t = t2;
 		}
 		else 
@@ -139,7 +143,7 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 			else 
 			{
 				// this case should not happen
-				cerr << "Could not interpolate t weight for coordinate (" << point.col << "," << point.row << ")." << endl;
+				cout << "Could not interpolate t weight for coordinate (" << point.col << "," << point.row << ")." << endl;
 				t = 0;
 			}
 		}
@@ -147,7 +151,8 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 		double val = (p2.row + (p4.row - p2.row) * t - p1.row - (p3.row - p1.row) * t);
 		double s = (point.row - p1.row - (p3.row - p1.row) * t) / val;
 		double valEpsilon = 0.1; // 0.1 and 0.01 appear identical
-		if (fabs(val) < valEpsilon) {
+		if (fabs(val) < valEpsilon) 
+		{
 			// Py ~= Ay because By - Ay ~= 0. So, instead of interpolating with y, we use x.
 			s = (point.col - p1.col - (p3.col - p1.col) * t) / (p2.col + (p4.col - p2.col) * t - p1.col - (p3.col - p1.col) * t);
 		}
@@ -811,9 +816,9 @@ vector<vector<vector<LineD>>> GlobalWarpping::segment_line_in_quad(vector<LineD>
 /*
 	将三维的线段分割结果展开成一维的vector<LineD>
 */
-vector<LineD> GlobalWarpping::flatten(vector<vector<vector<LineD>>> lineSeg)
+vector<LineD> GlobalWarpping::flatten(vector<vector<vector<LineD>>>& lineSeg)
 {
-	vector<LineD> line_vec;
+	vector<LineD> line_vec;//结果vector
 	int numQuadRow = config.meshQuadRow;
 	int numQuadCol = config.meshQuadCol;
 	for (int row = 0; row < numQuadRow; row++) 
@@ -830,21 +835,21 @@ vector<LineD> GlobalWarpping::flatten(vector<vector<vector<LineD>>> lineSeg)
 }
 
 /*
-	
+	在origin矩阵上进行扩展,即矩阵的合并,返回扩展之后的矩阵
 */
 SpareseMatrixD_Row GlobalWarpping::block_diag(SpareseMatrixD_Row origin, MatrixXd addin, int QuadID, Config config)
 {
-	int cols_total = 8 * config.meshQuadRow * config.meshQuadCol;
-	SpareseMatrixD_Row res(origin.rows() + addin.rows(), cols_total);
-	res.topRows(origin.rows()) = origin;
+	int cols_total = 8 * config.meshQuadRow * config.meshQuadCol;//总的列数,每一个网格单元为8*8(Shape Preservation Mat)
+	SpareseMatrixD_Row res(origin.rows() + addin.rows(), cols_total);//按行扩展,矩阵上半部分为origin,下半部分为addin
+	res.topRows(origin.rows()) = origin;//矩阵上半部分
 
-	int lefttop_row = origin.rows();
-	int lefttop_col = 8 * QuadID;
+	int lefttop_row = origin.rows();//addin开始的行数
+	int lefttop_col = 8 * QuadID;//addin开始的列数
 	for (int row = 0; row < addin.rows(); row++) 
 	{
 		for (int col = 0; col < addin.cols(); col++) 
 		{
-			res.insert(lefttop_row + row, lefttop_col + col) = addin(row, col);
+			res.insert(lefttop_row + row, lefttop_col + col) = addin(row, col);//将addin矩阵插入到res矩阵
 		}
 	}
 	res.makeCompressed();//对稀疏矩阵进行压缩
@@ -852,29 +857,33 @@ SpareseMatrixD_Row GlobalWarpping::block_diag(SpareseMatrixD_Row origin, MatrixX
 }
 
 /*
-
+	初始化线段分割,将具有相近倾斜角度的线段分配到一个集合中
 */
 vector<vector<vector<LineD>>> GlobalWarpping::init_line_seg(CVMat mask, vector<LineD>& lineSeg_flatten, vector<vector<CoordinateDouble>> mesh, vector<pair<int,double>>& id_theta, vector<double>& rotate_theta)
 {
 	double thetaPerbin = PI / 49;
 	revise_mask_for_lines(mask);
-	vector<LineD> lines = lsd_detect(mask);//first step:detect line except border
-												//step2: segment line in each quad
+	//第一步:使用LSD进行直线检测
+	vector<LineD> lines = lsd_detect(mask);
+	//第二步:用网格分割所有线段到各自的网格内部
 	vector<vector<vector<LineD>>> lineSeg = segment_line_in_quad(lines, mesh);
-	//step3: construct sparsematrix
-	lineSeg_flatten = flatten(lineSeg);
-
-	for (int i = 0; i < lineSeg_flatten.size(); i++) {
-		LineD line = lineSeg_flatten[i];
-		double theta = atan((line.row1 - line.row2) / (line.col1 - line.col2));
-		int lineSegmentBucket = (int)round((theta + PI / 2) / thetaPerbin);
-		assert(lineSegmentBucket < 50);
-		id_theta.push_back(make_pair(lineSegmentBucket, theta));
-		rotate_theta.push_back(0);
+	//第三步:根据每个线段的倾斜角度,将线分配到预先设置的格子内部
+	lineSeg_flatten = flatten(lineSeg);//将得到的三维vector展开
+	for (int i = 0; i < lineSeg_flatten.size(); i++) 
+	{
+		LineD line = lineSeg_flatten[i];//每条直线
+		double theta = atan((line.row1 - line.row2) / (line.col1 - line.col2));//计算线段的倾斜角度arctan(y1-y1)/(x1-x2)
+		int lineSegmentBucket = (int)round((theta + PI / 2) / thetaPerbin);//计算线段对应的bin id
+		assert(lineSegmentBucket < 50);//保证lineSegmentBucket < 50
+		id_theta.push_back(make_pair(lineSegmentBucket, theta));//将该线段加入到id_theta中
+		rotate_theta.push_back(0);//
 	}
 	return lineSeg;
 }
 
+/*
+	获取直线能量矩阵
+*/
 SpareseMatrixD_Row GlobalWarpping::get_line_mat(CVMat mask, vector<vector<CoordinateDouble>> mesh, vector<double>rotate_theta, vector<vector<vector<LineD>>> lineSeg, vector<pair<MatrixXd, MatrixXd>>& BilinearVec, int& linenum, vector<bool>& bad) 
 {
 	int linetmpnum = -1;
@@ -882,8 +891,8 @@ SpareseMatrixD_Row GlobalWarpping::get_line_mat(CVMat mask, vector<vector<Coordi
 	int cols = config.cols;
 	int QuadnumRow = config.meshQuadRow;
 	int QuadnumCol = config.meshQuadCol;
-	double gridcols = config.colPermesh;
-	double gridrows = config.rowPermesh;
+	double gridcols = config.colPermesh;//每个网格所占的列数
+	double gridrows = config.rowPermesh;//每个网格所占的行数
 
 	/*
 	for (int i = 0; i < lines.size(); i++) {
@@ -900,7 +909,7 @@ SpareseMatrixD_Row GlobalWarpping::get_line_mat(CVMat mask, vector<vector<Coordi
 	}*/
 
 
-	SpareseMatrixD_Row energy_line;
+	SpareseMatrixD_Row energy_line;//line能量矩阵
 	for (int row = 0; row < QuadnumRow; row++) {
 		for (int col = 0; col < QuadnumCol; col++) {
 			vector<LineD> linesegInquad = lineSeg[row][col];
@@ -963,34 +972,3 @@ SpareseMatrixD_Row GlobalWarpping::get_line_mat(CVMat mask, vector<vector<Coordi
 	return energy_line;
 }
 
-/*
-	计算theta值
-*/
-vector<vector<vector<pair<int, double>>>> GlobalWarpping::cal_theta(vector<vector<vector<Line_rotate>>> lineSeg, Config config)
-{
-	vector < vector<vector<pair<int, double>>>> lineGroup;
-	for (int row = 0; row < config.meshQuadRow; row++) {
-		vector<vector<pair<int, double>>> row_vec;
-		for (int col = 0; col < config.meshQuadCol; col++) {
-			vector<pair<int, double>> vec;
-			row_vec.push_back(vec);
-		}
-		lineGroup.push_back(row_vec);
-	}
-	double qstep = PI / 49;
-	for (int row = 0; row < config.meshQuadRow; row++) {
-		for (int col = 0; col < config.meshQuadCol; col++) {
-			vector<Line_rotate> linevec = lineSeg[row][col];
-			int linenum = linevec.size();
-			for (int i = 0; i < linenum; i++) {
-				Line_rotate line = linevec[i];
-				Vector2d pstart = line.pstart;//y x
-				Vector2d pend = line.pend;
-				double theta = atan((pstart(0) - pend(0)) / (pstart(1) - pend(1)));
-				int groupid = (int)(round((theta + PI / 2) / qstep) + 1);
-				lineGroup[row][col].push_back(make_pair(groupid, theta));
-			}
-		}
-	}
-	return lineGroup;
-}
