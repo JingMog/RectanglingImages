@@ -58,8 +58,7 @@ protected:
 	vector<LineD> flatten(vector<vector<vector<LineD>>>& lineSeg);
 	//在origin矩阵上进行扩展, 即矩阵的合并, 返回扩展之后的矩阵
 	SpareseMatrixD_Row block_diag_extend(SpareseMatrixD_Row origin, MatrixXd addin, int QuadID);
-
-	//
+	//获取逆双线性插值系数s，t
 	BilinearWeights get_bilinear_weights(CoordinateDouble point, Coordinate upperLeftIndices, vector<vector<CoordinateDouble>> mesh);
 	
 

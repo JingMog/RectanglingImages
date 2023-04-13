@@ -16,17 +16,17 @@ GlobalWarpping::GlobalWarpping(Config& conf, CVMat& src)
 MatrixXd GlobalWarpping::BilinearWeightsToMatrix(BilinearWeights w)
 {
 	MatrixXd mat(2, 8);
-	double v1w = 1 - w.s - w.t + w.s * w.t;
-	double v2w = w.s - w.s * w.t;
-	double v3w = w.t - w.s * w.t;
-	double v4w = w.s * w.t;
+	double v1w = 1 - w.s - w.t + w.s * w.t;//1-s-t-st
+	double v2w = w.s - w.s * w.t;//s-st
+	double v3w = w.t - w.s * w.t;//t-st
+	double v4w = w.s * w.t;//st
 	mat << v1w, 0, v2w, 0, v3w, 0, v4w, 0,
 		0, v1w, 0, v2w, 0, v3w, 0, v4w;
 	return mat;
 }
 
 /*
-	获取双线性权值
+	获取逆双线性插值系数s，t
 */
 BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coordinate upperLeftIndices, vector<vector<CoordinateDouble>> mesh)
 {
@@ -41,19 +41,19 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 	double slopeLeft   = (p1.row - p3.row) / (p1.col - p3.col);//左边界斜率
 	double slopeRight  = (p2.row - p4.row) / (p2.col - p4.col);//右边界斜率
 
-	double quadraticEpsilon = 0.1;//
+	double quadraticEpsilon = 0.1;//计算误差
 
-	//上下边界平行并且左右边界平行
+	//上下边界平行并且左右边界平行,平行四边形
 	if (slopeTop == slopeBottom && slopeLeft == slopeRight)
 	{
 		// method 3
 		Matrix2d mat1;
-		//上边界的长,左边界的长,上边界的宽,左边界的宽
+		//[x2-x1 x3-x2; y2-y1 y3-y1]
 		mat1 << p2.col - p1.col, p3.col - p1.col,
 			p2.row - p1.row, p3.row - p1.row;
 
 		MatrixXd mat2(2, 1);
-		mat2 << point.col - p1.col, point.row - p1.row;//point到p1的长,point到p1的宽
+		mat2 << point.col - p1.col, point.row - p1.row;//[x-x1, y-y1]
 
 		MatrixXd matsolution = mat1.inverse() * mat2;//mat1^-1 * mat2
 
@@ -88,7 +88,6 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 		}
 		else 
 		{
-			//
 			if ((s1 > 1 && s1 - quadraticEpsilon < 1) || (s2 > 1 && s2 - quadraticEpsilon < 1)) 
 			{
 				s = 1;
@@ -99,18 +98,16 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 			}
 			else 
 			{
-				// this case should not happen
-				//cout << "Could not interpolate s weight for coordinate (" << point.col << "," << point.row << ")." << endl;
 				s = 0;
 			}
 		}
 
 		double val = (p3.row + (p4.row - p3.row) * s - p1.row - (p2.row - p1.row) * s);//s weight
 		double t = (point.row - p1.row - (p2.row - p1.row) * s) / val;
-		double valEpsilon = 0.01; // 0.1 and 0.01 appear identical
+		double valEpsilon = 0.1; //
 		if (fabs(val) < valEpsilon)
 		{
-			// Py ~= Cy because Dy - Cy ~= 0. So, instead of interpolating with y, we use x.
+			// Py ~= Cy因为Dy - Cy ~= 0.因此使用x进行插值
 			t = (point.col - p1.col - (p2.col - p1.col) * s) / (p3.col + (p4.col - p3.col) * s - p1.col - (p2.col - p1.col) * s);
 		}
 
@@ -130,7 +127,6 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 		double t1 = (-1 * b + sqrt(b * b - 4 * a * c)) / (2 * a);
 		double t2 = (-1 * b - sqrt(b * b - 4 * a * c)) / (2 * a);
 		double t;
-		//cout << "s1: " << t1 << " s2: " << t2 << endl;
 		if (t1 >= 0 && t1 <= 1) 
 		{
 			t = t1;
@@ -151,18 +147,16 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 			}
 			else 
 			{
-				// this case should not happen
-				//cout << "Could not interpolate t weight for coordinate (" << point.col << "," << point.row << ")." << endl;
 				t = 0;
 			}
 		}
 
 		double val = (p2.row + (p4.row - p2.row) * t - p1.row - (p3.row - p1.row) * t);
 		double s = (point.row - p1.row - (p3.row - p1.row) * t) / val;
-		double valEpsilon = 0.1; // 0.1 and 0.01 appear identical
+		double valEpsilon = 0.1; //
 		if (fabs(val) < valEpsilon) 
 		{
-			// Py ~= Ay because By - Ay ~= 0. So, instead of interpolating with y, we use x.
+			// Py ~= Ay因为By - Ay ~= 0.所以使用x进行插值
 			s = (point.col - p1.col - (p3.col - p1.col) * t) / (p2.col + (p4.col - p2.col) * t - p1.col - (p3.col - p1.col) * t);
 		}
 		BilinearWeights weights;
@@ -294,7 +288,7 @@ SpareseMatrixD_Row GlobalWarpping::get_shape_mat(vector<vector<CoordinateDouble>
 }
 
 /*
-	获取Q矩阵?
+	获取Q矩阵,即论文中Line erergy中的eq和Shape Energy中的Vq
 */
 SpareseMatrixD_Row GlobalWarpping::get_vertex_to_shape_mat(vector<vector<CoordinateDouble>> mesh)
 {
@@ -321,15 +315,6 @@ SpareseMatrixD_Row GlobalWarpping::get_vertex_to_shape_mat(vector<vector<Coordin
 		}
 	}
 	Q.makeCompressed();//Q矩阵进行压缩
-	
-	/*for (int k = 0; k < Q.outerSize(); ++k)
-	{
-		for (SparseMatrix<double>::InnerIterator it(Q, k); it; ++it)
-		{
-			cout << it.row() << " " << it.col() << " : " << it.value() << endl;
-		}
-		cout << std::endl;
-	}*/
 	
 	return Q;
 }

@@ -10,8 +10,9 @@ int main()
 	double Time = (double)cvGetTickCount();
 
 	ImgRecting rect;
-	string imgPath = "C:/Users/jingmo/Pictures/CImages/Rectangling/1.jpg";
+	string imgPath = "C:/Users/jingmo/Pictures/CImages/Rectangling/2.jpg";
 	rect.runImgRecting(imgPath);//‘À––ImgRecting
+
 	/*
 	LocalWarpping local;
 	CVMat img = cv::imread(imgPath);

@@ -217,7 +217,7 @@ CVMat drawmesh(CVMat src, vector<vector<CoordinateDouble>> mesh, Config config)
 	}
 	cv::namedWindow("Mesh", CV_WINDOW_AUTOSIZE);
 	cv::imshow("Mesh", src);
-	cv::waitKey(0);
+	//cv::waitKey(0);
 	return src;
 }
 

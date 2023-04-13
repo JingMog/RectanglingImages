@@ -136,91 +136,109 @@ void ImgRecting::display()
 
 void ImgRecting::runImgRecting(string imgPath)
 {
-	//记录程序开始执行的时间
-	double Time = (double)cvGetTickCount();
+	double Time = (double)cvGetTickCount();//记录程序开始执行的时间
 
-	img = cv::imread(imgPath);
+	img = cv::imread(imgPath);//读取图片
+
+	cv::namedWindow("origin Img");
+	cv::imshow("origin Img", img);
 
 	CVMat scaled_img;
-	cv::resize(img, scaled_img, cv::Size(0, 0), 0.5, 0.5);
-
-	Config config(scaled_img.rows, scaled_img.cols, 20, 20);
-
-	CVMat mask = Mask_contour(scaled_img);
+	cv::resize(img, scaled_img, cv::Size(0, 0), 0.5, 0.5);//对图像进行缩放
+	Config config(scaled_img.rows, scaled_img.cols, 20, 20);//设置参数
+	CVMat mask = Mask_contour(scaled_img);//获取mask
 	CVMat tmpmask;
 	mask.copyTo(tmpmask);
-	CVMat wrapped_img = CVMat::zeros(scaled_img.size(), CV_8UC3);
+	CVMat wrapped_img = CVMat::zeros(scaled_img.size(), CV_8UC3);//保存warp之后得图像
+	LocalWarpping localWrap;//实例化LocalWarp对象
 
-	LocalWarpping localWrap;
 	//1.局部变形
-	vector<vector<Coordinate>> displacementMap = localWrap.Local_warp(scaled_img, wrapped_img, tmpmask);
+	vector<vector<Coordinate>> displacementMap = localWrap.Local_warp(scaled_img, wrapped_img, tmpmask);//localwarp，获取图像变形
+
+	cv::resize(wrapped_img, wrapped_img, cv::Size(0, 0), 2, 2, cv::INTER_AREA);
+	cv::namedWindow("warped Img", cv::WINDOW_AUTOSIZE);
+	cv::imshow("warped Img", wrapped_img);
+	
+
+	cout << "origin img size(): " << scaled_img.size() << endl;
+	cout << "warpped_img.size():  " << wrapped_img.size() << endl;
+
+	//2.在变形之后得图像上放置标准矩形网格
 	mesh = localWrap.get_rectangle_mesh(scaled_img, config);
 	//drawmesh(wrapped_img, mesh, config);
-	//system("pasue");
+	
+
+	//3.将标准网格根据变形矩阵转化到原图像上
 	localWrap.warp_mesh_back(mesh, displacementMap, config);
+	//drawmesh(scaled_img, mesh, config);
+	cout << "局部变形wrap back完成" << endl;
 
-	cout << "局部变形wrap back" << endl;
-
-	//二、全局调整
+	//4.全局调整
 	GlobalWarpping global(config, scaled_img);
-	SpareseMatrixD_Row shape_energy = global.get_shape_mat(mesh);
+	SpareseMatrixD_Row shape_energy = global.get_shape_mat(mesh);//获取shape Energy Mat
 	cout << "get shape energy" << endl;
-	SpareseMatrixD_Row Q = global.get_vertex_to_shape_mat(mesh);
+	SpareseMatrixD_Row Q = global.get_vertex_to_shape_mat(mesh);//获取Q矩阵
 	pair<SpareseMatrixD_Row, VectorXd> pair_dvec_B = global.get_boundary_mat(mesh);
 	cout << "get border constraint" << endl;
 
-	vector<pair<int, double>>id_theta;
-	vector < LineD > line_flatten;
+	vector<pair<int, double>>id_theta;//保存每一个bin的theta
+	vector<LineD> line_flatten;
 	vector<double> rotate_theta;
-	vector<vector<vector<LineD>>> LineSeg = global.init_line_seg(mask, line_flatten, mesh, id_theta, rotate_theta);
+	vector<vector<vector<LineD>>> LineSeg = global.init_line_seg(mask, line_flatten, mesh, id_theta, rotate_theta);//用网格对所有LSD检测到的直线进行分割
 
-	// 开始迭代
+	// 开始优化迭代
 	for (int iter = 1; iter <= 10; iter++) 
 	{
-		cout << iter << endl;
-		int Nl = 0;
+		cout << "iter: " << iter << endl;
+		int linenum = 0;
 		vector<pair<MatrixXd, MatrixXd>> BilinearVec;//need to update
 		vector<bool> bad;
-		SpareseMatrixD_Row line_energy = global.get_line_mat(mask, mesh, rotate_theta, LineSeg, BilinearVec, Nl, bad);
-		cout << "get line energy" << "  " << Nl << endl;
-		//combine
-		double Nq = config.meshQuadRow * config.meshQuadCol;
-		double lambdaB = INF;
-		double lambdaL = 100;
-		SpareseMatrixD_Row shape = (1 / Nq) * (shape_energy * Q);
-		SpareseMatrixD_Row boundary = lambdaB * pair_dvec_B.first;
-		SpareseMatrixD_Row line = (lambdaL / Nl) * (line_energy * Q);
+		SpareseMatrixD_Row line_energy = global.get_line_mat(mask, mesh, rotate_theta, LineSeg, BilinearVec, linenum, bad);//每次迭代需要重新获取line_energy
+		cout << "get line energy, line num: " << linenum << endl;
+
+		double Nq = config.meshQuadRow * config.meshQuadCol;//网格点的个数
+		double lambdaB = INF;//论文中公式(9)中的lambdaB
+		double lambdaL = 100;//论文中公式(9)中的lambdaL
+		SpareseMatrixD_Row shape = (1 / Nq) * (shape_energy * Q);//shape
+		SpareseMatrixD_Row boundary = lambdaB * pair_dvec_B.first;//boundary
+		SpareseMatrixD_Row line = (lambdaL / linenum) * (line_energy * Q);//line
 
 		SpareseMatrixD_Row K = row_stack(shape, line);
-		SpareseMatrixD_Row K2 = row_stack(K, boundary);
+		SpareseMatrixD_Row K2 = row_stack(K, boundary);//将shape,line,boundary合并成一个矩阵
 
 		//print_sparse_mat_row(shape_energy,1);
 		//system("pause");
-		VectorXd B = pair_dvec_B.second;
+		VectorXd B = pair_dvec_B.second;//B
 		VectorXd BA = VectorXd::Zero(K2.rows());
-		BA.tail(B.size()) = lambdaB * B;
+		BA.tail(B.size()) = lambdaB * B;//将LambdaB*B放到BA下方
 
-		SparseMatrixD K2_trans = K2.transpose();
-		SparseMatrixD A = K2_trans * K2;
-		VectorXd b = K2_trans * BA;
+		SparseMatrixD K2_trans = K2.transpose();//K2^T
+		SparseMatrixD A = K2_trans * K2;//A为所有能量的平方即||E(V,threta)||^2
+
+		VectorXd b = K2_trans * BA;//K2^T * BA
 		VectorXd x;
 
-		CSolve* p_A = new CSolve(A);
+		//A=K2^T * K2, b=K2^T * BA,求解bx = A
+		CSolve* p_A = new CSolve(A);//Eigen库中的数值求解器
 		x = p_A->solve(b);
+
 		//update theta
-		outputmesh = vector_to_mesh(x, config);
+		outputmesh = vector_to_mesh(x, config);//将求解得到的x转化为更新之后的网格
+
 		int tmplinenum = -1;
 		VectorXd thetagroup = VectorXd::Zero(50);
 		VectorXd thetagroupcnt = VectorXd::Zero(50);
-		for (int row = 0; row < config.meshQuadRow; row++) 
+		for (int row = 0; row < config.meshQuadRow; row++)
 		{
-			for (int col = 0; col < config.meshQuadCol; col++) 
+			for (int col = 0; col < config.meshQuadCol; col++)
 			{
-				vector<LineD> linesegInquad = LineSeg[row][col];
-				int QuadID = row * config.meshQuadCol + col;
+				//遍历每一个网格点
+				//更新网格点中的直线
+				vector<LineD> linesegInquad = LineSeg[row][col];//该网格中的线段
+				int QuadID = row * config.meshQuadCol + col;//网格一维ID
 				if (linesegInquad.size() == 0) 
 				{
-					continue;
+					continue;//如果该网格中没有线段,直接下一个网格
 				}
 				else 
 				{
@@ -229,26 +247,25 @@ void ImgRecting::runImgRecting(string imgPath)
 					{
 						tmplinenum++;
 						//cout << tmplinenum<<endl;
-
 						if (bad[tmplinenum] == true) 
 						{
-							cout << "bad is true " << endl;
+							//cout << "bad is true " << endl;
 							continue;
 						}
 						//cout << tmplinenum;
-						pair<MatrixXd, MatrixXd> Bstartend = BilinearVec[tmplinenum];
-						MatrixXd start_W_mat = Bstartend.first;
-						MatrixXd end_W_mat = Bstartend.second;
-						Vector2d newstart = start_W_mat * S;
-						Vector2d newend = end_W_mat * S;
+						pair<MatrixXd, MatrixXd> Bstartend = BilinearVec[tmplinenum];//获取逆双线性插值的权重
+						MatrixXd start_W_mat = Bstartend.first;//线段起始点Weight mat
+						MatrixXd end_W_mat = Bstartend.second;//线段终点Weight mat
+						Vector2d newstart = start_W_mat * S;//对线段起点进行更新
+						Vector2d newend = end_W_mat * S;//对线段终点进行更新
 
-						double theta = atan((newstart(1) - newend(1)) / (newstart(0) - newend(0)));
-						double deltatheta = theta - id_theta[tmplinenum].second;
+						double theta = atan((newstart(1) - newend(1)) / (newstart(0) - newend(0)));//新的角度
+						double deltatheta = theta - id_theta[tmplinenum].second;//角度的变化值
 						if (isnan(id_theta[tmplinenum].second) || isnan(deltatheta)) 
 						{
 							continue;
 						}
-
+						//保证deltatheta 在[-pi,pi]之间
 						if (deltatheta > (PI / 2)) 
 						{
 							deltatheta -= PI;
@@ -257,31 +274,34 @@ void ImgRecting::runImgRecting(string imgPath)
 						{
 							deltatheta += PI;
 						}
-						thetagroup(id_theta[tmplinenum].first) += deltatheta;
+						thetagroup(id_theta[tmplinenum].first) += deltatheta;//更新theta
 						thetagroupcnt(id_theta[tmplinenum].first) += 1;
-						//cout << newstart << endl << endl << newend;
 					}
 				}
 			}
 		}
 
-		//cal mean theta
+		//计算theta的均值
 		for (int ii = 0; ii < thetagroup.size(); ii++) 
 		{
 			thetagroup(ii) /= thetagroupcnt(ii);
-
 		}
-		//update rotate_theta
+		//更新rotate_theta数组
 		for (int ii = 0; ii < rotate_theta.size(); ii++) {
 			rotate_theta[ii] = thetagroup[id_theta[ii].first];
 		}
+		/*if (iter % 5 == 0)
+		{
+			vector<vector<CoordinateDouble>> outputmesh = vector_to_mesh(x, config);
+			drawmesh(scaled_img, outputmesh, config);
+		}*/
+		
+		//system("pause");
 	}
+
 	//cout << x;
 	//system("pause");
-	//vector<vector<CoordinateDouble>> outputmesh = vector_to_mesh(x,config);
-	//drawmesh(scaled_img, outputmesh, config);
-	//system("pause");
-
+	
 	enlarge_mesh(mesh, 2, config);
 	enlarge_mesh(outputmesh, 2, config);
 	CVMat outputimg = CVMat::zeros(img.size(), CV_32FC3);
@@ -290,19 +310,22 @@ void ImgRecting::runImgRecting(string imgPath)
 
 	for (int row = 0; row < config.meshQuadRow; row++) 
 	{
-		cout << row << endl;
+		cout << "row: " << row << endl;
 		for (int col = 0; col < config.meshQuadCol; col++)
 		{
-			VectorXd Vq = global.get_vertices(row, col, outputmesh);//x0,y0,x1,y1
+			VectorXd Vq = global.get_vertices(row, col, outputmesh);//x0,y0,x1,y1(Vq)
 			VectorXd Vo = global.get_vertices(row, col, mesh);//x0,y0
-			double col_len = max(Vq(0), max(Vq(2), max(Vq(4), Vq(6)))) - min(Vq(0), min(Vq(2), min(Vq(4), Vq(6))));
-			double row_len = max(Vq(1), max(Vq(3), max(Vq(5), Vq(7)))) - min(Vq(1), min(Vq(3), min(Vq(5), Vq(7))));
+			double col_len = max(Vq(0), max(Vq(2), max(Vq(4), Vq(6)))) - min(Vq(0), min(Vq(2), min(Vq(4), Vq(6))));//
+			double row_len = max(Vq(1), max(Vq(3), max(Vq(5), Vq(7)))) - min(Vq(1), min(Vq(3), min(Vq(5), Vq(7))));//
 			double col_step = 1 / (4 * col_len);
 			double row_step = 1 / (4 * row_len);
+			//cout << "col_step: " << col_step << endl;
+			//cout << "row_step: " << row_step << endl;
+
 			//system("pause");
-			for (double i = 0; i < 1; i += row_step) 
+			for (double i = 0; i < 1; i += row_step)
 			{
-				for (double j = 0; j < 1; j += col_step) 
+				for (double j = 0; j < 1; j += col_step)
 				{
 					double v1w = 1 - i - j + i * j;
 					double v2w = j - i * j;
@@ -313,16 +336,12 @@ void ImgRecting::runImgRecting(string imgPath)
 						0, v1w, 0, v2w, 0, v3w, 0, v4w;
 					VectorXd pout = matt * Vq;
 					VectorXd pref = matt * Vo;
-					if (int(pout(1)) >= 0 && int(pout(0)) >= 0 && int(pout(1)) < img.rows && int(pout(0)) < img.cols) 
+					if (int(pout(1)) >= 0 && int(pout(0)) >= 0 && int(pout(1)) < img.rows && int(pout(0)) < img.cols)
 					{
 						colorPixel pixel = img.at<colorPixel>(int(pref(1)), int(pref(0)));
 						cv::Vec3f pixelf = cv::Vec3f(float(pixel[0]), float(pixel[1]), float(pixel[2]));
 						outputimg.at<cv::Vec3f>(int(pout(1)), int(pout(0))) = outputimg.at<cv::Vec3f>(int(pout(1)), int(pout(0))) + pixelf;
 						ouputcnt.at<cv::Vec3f>(int(pout(1)), int(pout(0))) += cv::Vec3f(1, 1, 1);
-					}
-					else 
-					{
-						//cout << "unfill";
 					}
 				}
 			}
@@ -330,15 +349,17 @@ void ImgRecting::runImgRecting(string imgPath)
 	}
 
 	CVMat finaloutput = outputimg / (255 * ouputcnt);
+	CVMat meshimg;
+	finaloutput.copyTo(meshimg);
 
-	//drawmesh(finaloutput, outputmesh, config);
+	drawmesh(meshimg, outputmesh, config);
 	//fill_image(finaloutput);
 	cv::namedWindow("Border", CV_WINDOW_AUTOSIZE);
 	cv::imshow("Border", finaloutput);
 
-	Time = (double)cvGetTickCount() - Time;
+	Time = (double)cvGetTickCount() - Time	;
 
-	printf("run time = %gms\n", Time / (cvGetTickFrequency() * 1000));//毫秒
+	::printf("run time = %gms\n", Time / (cvGetTickFrequency() * 1000));//毫秒
 	cv::waitKey(0);
 
 	/*
