@@ -173,8 +173,8 @@ BilinearWeights GlobalWarpping::get_bilinear_weights(CoordinateDouble point, Coo
 pair<SpareseMatrixD_Row, VectorXd> GlobalWarpping::get_boundary_mat(vector<vector<CoordinateDouble>> mesh)
 {
 	//Vq=[x0 y0,x1,y1...]
-	int rows = config.rows;
-	int cols = config.cols;
+	int rows = config.rows;//图像的行数
+	int cols = config.cols;//图像的列数
 	int numMeshRow = config.meshNumRow;//网格的行数
 	int numMeshCol = config.meshNumCol;//网格的列数
 	int vertexnum = numMeshRow * numMeshCol;//顶点的数量为行数乘以列数，(400)
@@ -183,19 +183,17 @@ pair<SpareseMatrixD_Row, VectorXd> GlobalWarpping::get_boundary_mat(vector<vecto
 	VectorXd B = VectorXd::Zero(double(vertexnum) * 2);//B向量
 	for (int i = 0; i < vertexnum * 2; i += numMeshCol * 2)
 	{
-		//左
 		dvec(i) = 1;
 		B(i) = 0;
 	}
 	for (int i = numMeshCol * 2 - 2; i < vertexnum * 2; i += numMeshCol * 2) 
 	{
-		//右
+		//
 		dvec(i) = 1;
 		B(i) = double(cols) - 1;
 	}
 	for (int i = 1; i < 2 * numMeshCol; i += 2) 
 	{
-		//上
 		dvec(i) = 1;
 		B(i) = 0;
 	}

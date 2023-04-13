@@ -190,6 +190,9 @@ void ImgRecting::runImgRecting(string imgPath)
 	for (int iter = 1; iter <= 10; iter++) 
 	{
 		cout << "iter: " << iter << endl;
+
+		//Fix thetam and update V
+
 		int linenum = 0;
 		vector<pair<MatrixXd, MatrixXd>> BilinearVec;//need to update
 		vector<bool> bad;
@@ -216,15 +219,16 @@ void ImgRecting::runImgRecting(string imgPath)
 		SparseMatrixD A = K2_trans * K2;//A为所有能量的平方即||E(V,threta)||^2
 
 		VectorXd b = K2_trans * BA;//K2^T * BA
-		VectorXd x;
+		VectorXd VV;
 
-		//A=K2^T * K2, b=K2^T * BA,求解bx = A
+		//E是V的二次函数
+		//A=K2^T * K2, b=K2^T * BA,求解AV = B
 		CSolve* p_A = new CSolve(A);//Eigen库中的数值求解器
-		x = p_A->solve(b);
+		VV = p_A->solve(b);//update V
+		outputmesh = vector_to_mesh(VV, config);//将求解得到的VV转化为更新之后的网格,即warp back
 
 		//update theta
-		outputmesh = vector_to_mesh(x, config);//将求解得到的x转化为更新之后的网格
-
+		//Fix V and update thetam
 		int tmplinenum = -1;
 		VectorXd thetagroup = VectorXd::Zero(50);
 		VectorXd thetagroupcnt = VectorXd::Zero(50);
@@ -246,7 +250,7 @@ void ImgRecting::runImgRecting(string imgPath)
 					for (int k = 0; k < linesegInquad.size(); k++) 
 					{
 						tmplinenum++;
-						//cout << tmplinenum<<endl;
+						//cout << tmplinenum << endl;
 						if (bad[tmplinenum] == true) 
 						{
 							//cout << "bad is true " << endl;
@@ -282,21 +286,16 @@ void ImgRecting::runImgRecting(string imgPath)
 		}
 
 		//计算theta的均值
-		for (int ii = 0; ii < thetagroup.size(); ii++) 
+		for (int m = 0; m < thetagroup.size(); m++) 
 		{
-			thetagroup(ii) /= thetagroupcnt(ii);
+			thetagroup(m) /= thetagroupcnt(m);
 		}
 		//更新rotate_theta数组
-		for (int ii = 0; ii < rotate_theta.size(); ii++) {
-			rotate_theta[ii] = thetagroup[id_theta[ii].first];
-		}
-		/*if (iter % 5 == 0)
+		for (int m = 0; m < rotate_theta.size(); m++) 
 		{
-			vector<vector<CoordinateDouble>> outputmesh = vector_to_mesh(x, config);
-			drawmesh(scaled_img, outputmesh, config);
-		}*/
-		
-		//system("pause");
+			rotate_theta[m] = thetagroup[id_theta[m].first];
+		}
+
 	}
 
 	//cout << x;
@@ -315,12 +314,11 @@ void ImgRecting::runImgRecting(string imgPath)
 		{
 			VectorXd Vq = global.get_vertices(row, col, outputmesh);//x0,y0,x1,y1(Vq)
 			VectorXd Vo = global.get_vertices(row, col, mesh);//x0,y0
-			double col_len = max(Vq(0), max(Vq(2), max(Vq(4), Vq(6)))) - min(Vq(0), min(Vq(2), min(Vq(4), Vq(6))));//
-			double row_len = max(Vq(1), max(Vq(3), max(Vq(5), Vq(7)))) - min(Vq(1), min(Vq(3), min(Vq(5), Vq(7))));//
-			double col_step = 1 / (4 * col_len);
-			double row_step = 1 / (4 * row_len);
-			//cout << "col_step: " << col_step << endl;
-			//cout << "row_step: " << row_step << endl;
+			double col_len = max(Vq(0), max(Vq(2), max(Vq(4), Vq(6)))) - min(Vq(0), min(Vq(2), min(Vq(4), Vq(6))));//xmax - xmin
+			double row_len = max(Vq(1), max(Vq(3), max(Vq(5), Vq(7)))) - min(Vq(1), min(Vq(3), min(Vq(5), Vq(7))));//ymax - ymin
+			//cout << col_len << " " << row_len << endl;
+			double col_step = 1 / (4 * col_len);//1/4*(xmax - xmin), 列步长
+			double row_step = 1 / (4 * row_len);//1/4*(ymax - ymin)，行步长
 
 			//system("pause");
 			for (double i = 0; i < 1; i += row_step)
@@ -333,9 +331,9 @@ void ImgRecting::runImgRecting(string imgPath)
 					double v4w = i * j;
 					MatrixXd matt(2, 8);
 					matt << v1w, 0, v2w, 0, v3w, 0, v4w, 0,
-						0, v1w, 0, v2w, 0, v3w, 0, v4w;
-					VectorXd pout = matt * Vq;
-					VectorXd pref = matt * Vo;
+						    0, v1w, 0, v2w, 0, v3w, 0, v4w;
+					VectorXd pout = matt * Vq;//Vq为输出mesh四顶点坐标,
+					VectorXd pref = matt * Vo;//Vo为原始mesh四顶点坐标
 					if (int(pout(1)) >= 0 && int(pout(0)) >= 0 && int(pout(1)) < img.rows && int(pout(0)) < img.cols)
 					{
 						colorPixel pixel = img.at<colorPixel>(int(pref(1)), int(pref(0)));
@@ -354,8 +352,8 @@ void ImgRecting::runImgRecting(string imgPath)
 
 	drawmesh(meshimg, outputmesh, config);
 	//fill_image(finaloutput);
-	cv::namedWindow("Border", CV_WINDOW_AUTOSIZE);
-	cv::imshow("Border", finaloutput);
+	cv::namedWindow("Final Result", CV_WINDOW_AUTOSIZE);
+	cv::imshow("Final Result", finaloutput);
 
 	Time = (double)cvGetTickCount() - Time	;
 
