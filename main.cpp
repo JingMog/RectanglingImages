@@ -10,7 +10,7 @@ int main()
 	double Time = (double)cvGetTickCount();
 
 	ImgRecting rect;
-	string imgPath = "C:/Users/jingmo/Pictures/CImages/Rectangling/2.jpg";
+	string imgPath = "C:/Users/jingmo/Pictures/CImages/Rectangling/5.jpg";
 	rect.runImgRecting(imgPath);//‘À––ImgRecting
 
 	/*

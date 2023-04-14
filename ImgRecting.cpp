@@ -351,6 +351,7 @@ void ImgRecting::runImgRecting(string imgPath)
 	finaloutput.copyTo(meshimg);
 
 	drawmesh(meshimg, outputmesh, config);
+
 	//fill_image(finaloutput);
 	cv::namedWindow("Final Result", CV_WINDOW_AUTOSIZE);
 	cv::imshow("Final Result", finaloutput);
