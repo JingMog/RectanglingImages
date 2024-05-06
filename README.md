@@ -1,6 +1,8 @@
 # RectanglingImages
 论文《Rectangling Panoramic Images via Warping》的复现
 
+论文地址：https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=aaf5392b64d7be2d0147d3f6325ce4a75dd43fd6
+
 ### 1.Background
 
 - 大多数情况下，全景图在最原始的情况下是不规则的，可能是因为用相机拍照的时候手抖了，或者是用算法拼接的时候，结果本来就很难直接拼成矩形，所以全景图大部分都是非规则的。
