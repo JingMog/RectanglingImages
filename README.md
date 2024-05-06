@@ -1,5 +1,5 @@
 # RectanglingImages
-论文《Rectangling Panoramic Images via Warping》的实现
+论文《Rectangling Panoramic Images via Warping》的复现
 
 ### 1.Background
 
