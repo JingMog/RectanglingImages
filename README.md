@@ -1,5 +1,7 @@
 # RectanglingImages
-论文《Rectangling Panoramic Images via Warping》的实现
+论文《Rectangling Panoramic Images via Warping》的复现
+
+论文地址：https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=aaf5392b64d7be2d0147d3f6325ce4a75dd43fd6
 
 ## 1.Background
 
