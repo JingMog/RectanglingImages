@@ -1,5 +1,9 @@
+![image](result/title.jpg#pic_center)
+
 # RectanglingImages
-论文《Rectangling Panoramic Images via Warping》的复现
+论文《Rectangling Panoramic Images via Warping》的复现, 开发环境使用VS2019, VS版本向下兼容, 更高版本的可直接打开sln项目文件即可导入项目。
+
+复现的源码注释较全, 如果有帮助的右上角点个小小的 :star: 叭。
 
 论文地址：https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=aaf5392b64d7be2d0147d3f6325ce4a75dd43fd6
 
