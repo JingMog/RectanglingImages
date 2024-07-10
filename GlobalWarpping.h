@@ -44,11 +44,11 @@ protected:
 	Vector2d detectIntersect(Matrix2d line1, Matrix2d line2, bool& isintersection);
 	//修改mask边缘
 	void revise_mask_for_lines(CVMat& mask);
-	//判断点point是否在topLeft,topRight,bottomLeft,bottomRight组成地四边形内部
+	//判断点point是否在topLeft,topRight,bottomLeft,bottomRight组成的四边形内部
 	bool is_in_quad(CoordinateDouble point, CoordinateDouble topLeft, CoordinateDouble topRight, CoordinateDouble bottomLeft, CoordinateDouble bottomRight);
 	//判断直线Line是否在mask中
 	bool line_in_mask(CVMat mask, LineD line);
-	//调用lsd进行直线检测,返回检测到的直线
+	//调用lsd算法进行直线检测,返回检测到的直线
 	vector<LineD> lsd_detect(CVMat mask);
 	//根据网格的k和b来判断网格边缘是否和直线相交
 	bool does_segment_intersect_line(LineD lineSegment, double slope, double intersect, bool vertical, CoordinateDouble& intersectPoint);
@@ -67,7 +67,7 @@ public:
 	GlobalWarpping(Config& conf, CVMat& src);
 	//获取论文中的Shape Preservations能量矩阵
 	SpareseMatrixD_Row get_shape_mat(vector<vector<CoordinateDouble>> mesh);
-	//获取mesh中位于(row, col)的四邻域网格顶点坐标坐标
+	//获取mesh中位于(row, col)的四邻域网格顶点坐标
 	VectorXd get_vertices(int row, int col, vector<vector<CoordinateDouble>>& mesh);
 	//获取论文中的Boundary Constraints能量矩阵
 	pair<SpareseMatrixD_Row, VectorXd> get_boundary_mat(vector<vector<CoordinateDouble>> mesh);

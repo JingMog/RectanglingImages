@@ -149,7 +149,7 @@ void ImgRecting::runImgRecting(string imgPath)
 	CVMat mask = Mask_contour(scaled_img);//获取mask
 	CVMat tmpmask;
 	mask.copyTo(tmpmask);
-	CVMat wrapped_img = CVMat::zeros(scaled_img.size(), CV_8UC3);//保存warp之后得图像
+	CVMat wrapped_img = CVMat::zeros(scaled_img.size(), CV_8UC3);//保存warp之后的图像
 	LocalWarpping localWrap;//实例化LocalWarp对象
 
 	//1.局部变形
@@ -173,6 +173,12 @@ void ImgRecting::runImgRecting(string imgPath)
 	//drawmesh(scaled_img, mesh, config);
 	cout << "局部变形wrap back完成" << endl;
 
+
+
+	Time = (double)cvGetTickCount() - Time;
+	::printf("run time = %gms\n", Time / (cvGetTickFrequency() * 1000));//毫秒
+
+
 	//4.全局调整
 	GlobalWarpping global(config, scaled_img);
 	SpareseMatrixD_Row shape_energy = global.get_shape_mat(mesh);//获取shape Energy Mat
@@ -190,7 +196,6 @@ void ImgRecting::runImgRecting(string imgPath)
 	for (int iter = 1; iter <= 10; iter++) 
 	{
 		cout << "iter: " << iter << endl;
-
 		//Fix thetam and update V
 
 		int linenum = 0;
@@ -228,7 +233,7 @@ void ImgRecting::runImgRecting(string imgPath)
 		outputmesh = vector_to_mesh(VV, config);//将求解得到的VV转化为更新之后的网格,即warp back
 
 		//update theta
-		//Fix V and update thetam
+		//Fix V and update theta_m
 		int tmplinenum = -1;
 		VectorXd thetagroup = VectorXd::Zero(50);
 		VectorXd thetagroupcnt = VectorXd::Zero(50);
@@ -306,10 +311,10 @@ void ImgRecting::runImgRecting(string imgPath)
 	CVMat outputimg = CVMat::zeros(img.size(), CV_32FC3);
 	CVMat ouputcnt = CVMat::zeros(img.size(), CV_32FC3);
 
-
+	//产生最后的输出
 	for (int row = 0; row < config.meshQuadRow; row++) 
 	{
-		cout << "row: " << row << endl;
+		//cout << "row: " << row << endl;
 		for (int col = 0; col < config.meshQuadCol; col++)
 		{
 			VectorXd Vq = global.get_vertices(row, col, outputmesh);//x0,y0,x1,y1(Vq)
@@ -357,26 +362,9 @@ void ImgRecting::runImgRecting(string imgPath)
 	cv::imshow("Final Result", finaloutput);
 
 	Time = (double)cvGetTickCount() - Time	;
-
 	::printf("run time = %gms\n", Time / (cvGetTickFrequency() * 1000));//毫秒
+
 	cv::waitKey(0);
-
-	/*
-	//glut
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
-	glutInitWindowPosition(100, 100);
-	glutInitWindowSize(img.cols, img.rows);
-	glutCreateWindow("OpenGL纹理");
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_TEXTURE_2D);    // 启用纹理
-	texGround = matToTexture(img);
-	glutDisplayFunc(&display);   //注册函数
-	Time = (double)cvGetTickCount() - Time;
-
-	printf("run time = %gms\n", Time / (cvGetTickFrequency() * 1000));//毫秒
-	glutMainLoop(); //循环调用
-	*/
 	return;
 }
 
