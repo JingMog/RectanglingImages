@@ -77,7 +77,7 @@ Seam Carving算法使用扩充“能量”最小的seam来实现图像放大，�
 
 ## 4.Implementation Result
 
-!image[result/res1.png]
+![image](result/res1.png)
 
-!image[result/res2.png]
+![image](result/res2.png)
 
